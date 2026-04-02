@@ -60,13 +60,12 @@ onMounted(async () => {
   try {
     const data = await apiCall({ ac: 'detail' })
 
-    videoList.value = data.list
+    // 按观看人数降序排序，热门在前
+    videoList.value = data.list.sort((a, b) => (b.vod_hits || 0) - (a.vod_hits || 0))
 
-    // 【优化逻辑】
-    // 不直接取第0个，而是找第一条图片不是空的、且有简介的数据作为 Banner
-    // 如果没有筛选条件，直接取 list[0] 也可以
+    // 取排序后的第一个作为 Banner
     if (data.list && data.list.length > 0) {
-      featuredVideo.value = data.list[0]
+      featuredVideo.value = videoList.value[0]
     }
   } catch (error) {
     console.error('加载失败', error)

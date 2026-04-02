@@ -1,29 +1,78 @@
 // API 工具函数 - 用于处理静态网站环境下的API调用
 
-// 直接调用外部API，绕过代理
+// CORS 代理列表
+const corsProxies = [
+  'https://api.allorigins.win/raw?url=',
+  'https://corsproxy.io/?',
+  'https://api.codetabs.com/v1/proxy?quest='
+];
+
+// 视频源列表 - 按速度排序
+const videoSources = [
+  { name: '极速资源', url: 'https://jszyapi.com/api.php/provide/vod/', isAvailable: true },
+  { name: '非凡影视', url: 'http://ffzy5.tv/api.php/provide/vod/', isAvailable: true },
+  { name: '卧龙资源', url: 'https://wolongzyw.com/api.php/provide/vod/', isAvailable: true },
+  { name: '最大资源', url: 'https://api.zuidapi.com/api.php/provide/vod/', isAvailable: true },
+  { name: '无尽资源', url: 'https://api.wujinapi.me/api.php/provide/vod/', isAvailable: true },
+  { name: '如意资源', url: 'https://cj.rycjapi.com/api.php/provide/vod/', isAvailable: true }
+];
+
+let currentProxyIndex = 0;
+
+// 获取当前代理
+const getCurrentProxy = () => corsProxies[currentProxyIndex % corsProxies.length];
+
+// 切换到下一个代理
+const nextProxy = () => {
+  currentProxyIndex++;
+  console.log(`切换到代理 ${currentProxyIndex % corsProxies.length + 1}`);
+};
+
+// 直接调用外部API，使用CORS代理
 const directApiCall = async (params) => {
-  const baseUrl = 'https://cj.rycjapi.com/api.php/provide/vod/';
   const queryString = new URLSearchParams(params).toString();
-  const url = `${baseUrl}?${queryString}`;
   
-  try {
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'application/json'
-      }
-    });
+  // 依次尝试各个视频源
+  for (const source of videoSources) {
+    if (!source.isAvailable) continue;
     
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+    // 对每个视频源尝试所有代理
+    for (let proxyAttempt = 0; proxyAttempt < corsProxies.length; proxyAttempt++) {
+      try {
+        const targetUrl = `${source.url}?${queryString}`;
+        const proxyUrl = `${getCurrentProxy()}${encodeURIComponent(targetUrl)}`;
+        
+        console.log(`尝试使用 ${source.name} (代理 ${proxyAttempt + 1}):`, targetUrl);
+        
+        const response = await fetch(proxyUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'application/json'
+          },
+          signal: AbortSignal.timeout(8000)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log(`${source.name} 调用成功`);
+        return data;
+      } catch (error) {
+        console.warn(`${source.name} (代理 ${proxyAttempt + 1}) 调用失败:`, error);
+        nextProxy();
+        continue;
+      }
     }
     
-    return await response.json();
-  } catch (error) {
-    console.error('Direct API call failed:', error);
-    // 返回模拟数据作为备用
-    return getMockData(params);
+    // 这个视频源的所有代理都失败了，标记为不可用
+    source.isAvailable = false;
   }
+  
+  // 如果所有视频源都失败了，返回模拟数据
+  console.warn('所有视频源调用失败，使用模拟数据');
+  return getMockData(params);
 };
 
 // 模拟数据 - 当API调用失败时使用

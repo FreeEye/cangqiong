@@ -3,7 +3,7 @@ import { ref, onMounted, onBeforeUnmount, computed, nextTick, onUnmounted } from
 import { useRoute } from 'vue-router'
 import NavBar from '@/components/NavBar.vue'
 import Hls from 'hls.js'
-import { Calendar, MapPin, User, FileText, Layers, Eye, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-vue-next'
+import { Calendar, MapPin, User, FileText, Layers, Eye, ChevronLeft, ChevronRight, MessageSquare, PlayCircle } from 'lucide-vue-next'
 import Player from '@/components/Player.vue'
 import { apiCall } from '@/utils/api'
 
@@ -24,6 +24,80 @@ const currentViews = ref(0)
 
 // 热门视频推荐
 const recommendedVideos = ref([])
+
+// 评论功能
+const comments = ref([])
+const newComment = ref('')
+const showCommentSection = ref(false)
+
+// 加载评论
+const loadComments = () => {
+  const savedComments = localStorage.getItem(`comments_${route.params.id}`)
+  if (savedComments) {
+    comments.value = JSON.parse(savedComments)
+  } else {
+    // 默认评论（模拟真实数据）
+    comments.value = [
+      {
+        id: 1,
+        user: '小明同学',
+        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=1',
+        content: '这部剧太好看了！剧情紧凑，演员演技在线！',
+        time: '2小时前',
+        likes: 128
+      },
+      {
+        id: 2,
+        user: '影视爱好者',
+        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=2',
+        content: '画面制作精良，配乐也很到位，值得一看！',
+        time: '5小时前',
+        likes: 89
+      },
+      {
+        id: 3,
+        user: '追剧达人',
+        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=3',
+        content: '熬夜看完了，根本停不下来！期待续集！',
+        time: '1天前',
+        likes: 256
+      }
+    ]
+    saveComments()
+  }
+}
+
+// 保存评论
+const saveComments = () => {
+  localStorage.setItem(`comments_${route.params.id}`, JSON.stringify(comments.value))
+}
+
+// 提交评论
+const submitComment = () => {
+  if (!newComment.value.trim()) return
+  
+  const comment = {
+    id: Date.now(),
+    user: '游客' + Math.floor(Math.random() * 1000),
+    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${Date.now()}`,
+    content: newComment.value,
+    time: '刚刚',
+    likes: 0
+  }
+  
+  comments.value.unshift(comment)
+  saveComments()
+  newComment.value = ''
+}
+
+// 点赞评论
+const likeComment = (commentId) => {
+  const comment = comments.value.find(c => c.id === commentId)
+  if (comment) {
+    comment.likes++
+    saveComments()
+  }
+}
 
 // --- 保存观看历史 ---
 const saveWatchHistory = () => {
@@ -102,6 +176,9 @@ const fetchVideoDetail = async () => {
   
   // 加载观看人数
   loadCurrentViews()
+  
+  // 加载评论
+  loadComments()
   
   // 加载热门视频推荐
   loadRecommendedVideos()
@@ -313,11 +390,11 @@ onUnmounted(() => {
     </div>
 
     <!-- 只有数据加载完成后才显示 -->
-    <div v-if="videoDetail" class="pt-20 mx-auto max-w-7xl px-4 lg:px-8 flex flex-col lg:flex-row gap-6 lg:gap-8">
+    <div v-if="videoDetail" class="pt-20 mx-auto max-w-7xl px-3 sm:px-4 lg:px-8 flex flex-col lg:flex-row gap-4 lg:gap-8">
       <!-- 左侧主区域：播放器 + 信息 -->
       <div class="flex-1 min-w-0">
         <!-- 播放器容器 -->
-        <div class="relative aspect-video w-full overflow-hidden rounded-xl  shadow-2xl shadow-purple-900/10 border border-white/5 group">
+        <div class="relative aspect-video w-full overflow-hidden rounded-lg lg:rounded-xl shadow-2xl shadow-purple-900/10 border border-white/5 group">
           <Player
             v-if="currentEpisodeUrl"
             :url="currentEpisodeUrl"
@@ -332,22 +409,22 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- 集数切换按钮 -->
-          <div v-if="currentEpisodesList.length > 1" class="absolute bottom-4 left-4 right-4 flex justify-between">
+          <!-- 集数切换按钮 - 移动端优化 -->
+          <div v-if="currentEpisodesList.length > 1" class="absolute bottom-2 left-2 right-2 flex justify-between">
             <button
               @click="playPreviousEpisode"
               :disabled="currentEpisodeIndex === 0"
-              class="flex items-center gap-2 px-4 py-2 bg-black/70 backdrop-blur-sm rounded-lg text-white transition-all hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="flex items-center gap-1 px-3 py-1.5 bg-black/70 backdrop-blur-sm rounded-lg text-white text-sm transition-all hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronLeft class="w-4 h-4" />
-              上一集
+              <span class="hidden sm:inline">上一集</span>
             </button>
             <button
               @click="playNextEpisode"
               :disabled="currentEpisodeIndex === currentEpisodesList.length - 1"
-              class="flex items-center gap-2 px-4 py-2 bg-black/70 backdrop-blur-sm rounded-lg text-white transition-all hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="flex items-center gap-1 px-3 py-1.5 bg-black/70 backdrop-blur-sm rounded-lg text-white text-sm transition-all hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              下一集
+              <span class="hidden sm:inline">下一集</span>
               <ChevronRight class="w-4 h-4" />
             </button>
           </div>
@@ -400,11 +477,11 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- 右侧侧边栏：选集 -->
+      <!-- 右侧侧边栏：选集 - 移动端优化 -->
       <div class="w-full lg:w-80 flex-shrink-0">
         <div class="rounded-xl bg-[#1a1b21] border border-white/5 sticky top-24 overflow-hidden flex flex-col max-h-[calc(100vh-8rem)]">
           <!-- 侧边栏头部 -->
-          <div class="p-4 border-b border-white/5 bg-[#23242a]">
+          <div class="p-3 lg:p-4 border-b border-white/5 bg-[#23242a]">
             <h3 class="font-bold text-white flex justify-between items-center">
               <span>选集</span>
               <span class="text-xs font-normal text-gray-500 bg-black/30 px-2 py-1 rounded-md">
@@ -413,14 +490,14 @@ onUnmounted(() => {
             </h3>
           </div>
 
-          <!-- 选集列表 (滚动区域) -->
-          <div class="p-3 overflow-y-auto flex-1 ">
-            <div class="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-3 gap-2">
+          <!-- 选集列表 (滚动区域) - 移动端优化网格 -->
+          <div class="p-2 lg:p-3 overflow-y-auto flex-1 ">
+            <div class="grid grid-cols-5 sm:grid-cols-6 lg:grid-cols-3 gap-1.5 lg:gap-2">
               <button
                 v-for="(ep, index) in currentEpisodesList"
                 :key="index"
                 @click="playEpisode(ep.url, ep.name)"
-                class="relative py-2 px-1 rounded-md text-xs font-medium transition-all duration-200 border truncate"
+                class="relative py-1.5 lg:py-2 px-1 rounded-md text-xs font-medium transition-all duration-200 border truncate"
                 :class="currentEpisodeUrl === ep.url
                   ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-600/20'
                   : 'bg-[#2a2b32] border-transparent text-gray-400 hover:bg-[#34353c] hover:text-gray-200'"
@@ -428,7 +505,7 @@ onUnmounted(() => {
               >
                 {{ ep.name }}
                 <!-- 播放状态小动画 -->
-                <span v-if="currentEpisodeUrl === ep.url" class="absolute top-1 right-1 block w-1.5 h-1.5 bg-white rounded-full animate-pulse shadow-sm" />
+                <span v-if="currentEpisodeUrl === ep.url" class="absolute top-0.5 right-0.5 block w-1 h-1 bg-white rounded-full animate-pulse shadow-sm" />
               </button>
             </div>
           </div>
@@ -441,16 +518,78 @@ onUnmounted(() => {
       <div class="h-10 w-10 animate-spin rounded-full border-4 border-purple-600 border-t-transparent" />
     </div>
 
-    <!-- 热门视频推荐 -->
-    <div v-if="recommendedVideos.length > 0" class="mt-16 mx-auto max-w-7xl px-4 lg:px-8">
-      <div class="mb-8 flex items-center justify-between">
+    <!-- 评论区域 - 移动端优化 -->
+    <div class="mt-12 lg:mt-16 mx-auto max-w-7xl px-3 sm:px-4 lg:px-8">
+      <div class="mb-6 flex items-center justify-between">
         <div class="flex items-center gap-2">
           <div class="w-1 h-6 bg-purple-600 rounded-full" />
-          <h2 class="text-2xl font-bold text-white tracking-wide">热门推荐</h2>
+          <h2 class="text-xl lg:text-2xl font-bold text-white tracking-wide">评论区</h2>
+        </div>
+        <button @click="showCommentSection = !showCommentSection" class="flex cursor-pointer items-center gap-2 rounded-xl bg-white/10 border border-white/10 px-3 py-1.5 lg:px-4 lg:py-2 font-semibold text-white backdrop-blur-md transition-all hover:bg-white/20 hover:border-white/20 text-sm">
+          <MessageSquare class="w-4 h-4" />
+          <span class="hidden sm:inline">{{ showCommentSection ? '收起' : `展开 (${comments.length})` }}</span>
+          <span class="sm:hidden">{{ comments.length }}</span>
+        </button>
+      </div>
+      
+      <div v-if="showCommentSection" class="space-y-4 lg:space-y-6">
+        <!-- 发表评论 - 移动端优化 -->
+        <div class="p-4 lg:p-6 rounded-xl bg-[#1a1b21] border border-white/5">
+          <div class="flex gap-3 lg:gap-4">
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=me" class="w-8 h-8 lg:w-10 lg:h-10 rounded-full" />
+            <div class="flex-1 space-y-3">
+              <textarea
+                v-model="newComment"
+                placeholder="说点什么吧..."
+                class="w-full h-20 lg:h-24 px-3 lg:px-4 py-2.5 lg:py-3 rounded-xl bg-[#2a2b32] border border-white/10 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none resize-none text-sm"
+              />
+              <div class="flex justify-end">
+                <button @click="submitComment" class="px-4 lg:px-6 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-all text-sm">
+                  发表评论
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 评论列表 - 移动端优化 -->
+        <div class="space-y-3 lg:space-y-4">
+          <div
+            v-for="comment in comments"
+            :key="comment.id"
+            class="p-4 lg:p-5 rounded-xl bg-[#1a1b21] border border-white/5"
+          >
+            <div class="flex gap-3 lg:gap-4">
+              <img :src="comment.avatar" class="w-8 h-8 lg:w-10 lg:h-10 rounded-full" />
+              <div class="flex-1">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="font-medium text-white text-sm">{{ comment.user }}</span>
+                  <span class="text-xs text-gray-500">{{ comment.time }}</span>
+                </div>
+                <p class="text-gray-300 mb-3 text-sm">{{ comment.content }}</p>
+                <button @click="likeComment(comment.id)" class="flex items-center gap-1 text-gray-400 hover:text-purple-400 transition-colors text-xs">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                  </svg>
+                  {{ comment.likes }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 热门视频推荐 - 移动端优化 -->
+    <div v-if="recommendedVideos.length > 0" class="mt-12 lg:mt-16 mx-auto max-w-7xl px-3 sm:px-4 lg:px-8">
+      <div class="mb-6 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-1 h-6 bg-purple-600 rounded-full" />
+          <h2 class="text-xl lg:text-2xl font-bold text-white tracking-wide">热门推荐</h2>
         </div>
       </div>
       
-      <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 xl:gap-6">
+      <div class="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 xl:gap-6">
         <div
           v-for="video in recommendedVideos"
           :key="video.vod_id"
@@ -458,7 +597,7 @@ onUnmounted(() => {
           class="group relative flex flex-col gap-2 cursor-pointer"
         >
           <!-- 封面容器 -->
-          <div class="relative aspect-[2/3] overflow-hidden rounded-xl bg-gray-800 shadow-lg transition-all duration-300 group-hover:shadow-purple-500/20 group-hover:ring-2 group-hover:ring-purple-500/50">
+          <div class="relative aspect-[2/3] overflow-hidden rounded-lg lg:rounded-xl bg-gray-800 shadow-lg transition-all duration-300 group-hover:shadow-purple-500/20 group-hover:ring-2 group-hover:ring-purple-500/50">
             <!-- 图片 -->
             <img
               :src="video.vod_pic || 'https://picsum.photos/300/450?random=' + video.vod_id"
@@ -469,8 +608,8 @@ onUnmounted(() => {
             />
             <!-- 播放按钮 -->
             <div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <div class="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center">
-                <PlayCircle class="w-6 h-6 text-white ml-1" />
+              <div class="w-10 h-10 lg:w-12 lg:h-12 bg-purple-600 rounded-full flex items-center justify-center">
+                <PlayCircle class="w-5 h-5 lg:w-6 lg:h-6 text-white ml-0.5" />
               </div>
             </div>
           </div>

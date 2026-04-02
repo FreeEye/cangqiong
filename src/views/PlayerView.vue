@@ -5,6 +5,7 @@ import NavBar from '@/components/NavBar.vue'
 import Hls from 'hls.js'
 import { Calendar, MapPin, User, FileText, Layers, Eye, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-vue-next'
 import Player from '@/components/Player.vue'
+import { apiCall } from '@/utils/api'
 
 // --- 状态定义 ---
 const route = useRoute()
@@ -70,8 +71,7 @@ const saveWatchHistory = () => {
 // 加载当前视频观看人数（真实数据）
 const loadCurrentViews = async () => {
   try {
-    const res = await fetch(`/api/proxy?ac=detail&ids=${route.params.id}`)
-    const data = await res.json()
+    const data = await apiCall({ ac: 'detail', ids: route.params.id })
     if (data && data.list && data.list.length > 0) {
       currentViews.value = data.list[0].vod_hits || 0
     }
@@ -91,8 +91,7 @@ const loadCurrentViews = async () => {
 
 // --- 核心逻辑 1: 获取并解析数据 ---
 const fetchVideoDetail = async () => {
-  const res = await fetch(`/api/proxy?ac=detail&ids=${route.params.id}`)
-  const data = await res.json()
+  const data = await apiCall({ ac: 'detail', ids: route.params.id })
   videoDetail.value = data?.list[0] || {}
   // 修改页面标题为当前剧集名称
   if (videoDetail.value.vod_name) {
@@ -111,8 +110,7 @@ const fetchVideoDetail = async () => {
 // 加载热门视频推荐
 const loadRecommendedVideos = async () => {
   try {
-    const res = await fetch('/api/proxy?ac=detail')
-    const data = await res.json()
+    const data = await apiCall({ ac: 'detail' })
     if (data && data.list) {
       // 过滤掉当前视频，取前6个作为推荐
       recommendedVideos.value = data.list

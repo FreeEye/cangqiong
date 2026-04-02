@@ -4,6 +4,7 @@ import NavBar from '@/components/NavBar.vue'
 import VideoCard from '@/components/VideoCard.vue'
 import { PlayCircle, Calendar, MapPin, Layers, Eye } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
+import { apiCall } from '@/utils/api'
 
 // 初始状态为 null，等待接口返回
 const featuredVideo = ref(null)
@@ -57,8 +58,7 @@ onMounted(async () => {
   })
 
   try {
-    const res = await fetch('/api/proxy?ac=detail')
-    const data = await res.json()
+    const data = await apiCall({ ac: 'detail' })
 
     videoList.value = data.list
 

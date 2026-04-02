@@ -3,6 +3,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Search, Clapperboard, Menu, X, Clock, User } from 'lucide-vue-next' // 引入 Menu 和 X 图标
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import useProjectStore from '@/stores/project'
+import { apiCall } from '@/utils/api'
 
 const router = useRouter()
 const route = useRoute()
@@ -14,8 +15,7 @@ const project = useProjectStore()
 const fetchCategories = async () => {
   try {
     if (project.menuList.length > 1) return
-    const res = await fetch('/api/proxy?ac=list')
-    const data = await res.json()
+    const data = await apiCall({ ac: 'list' })
     const cData = data.class.filter(item => item.type_pid == 0) || []
     // 自定义过滤名称
     const diyName = ['电影解说', '体育']

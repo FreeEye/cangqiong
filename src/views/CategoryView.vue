@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import NavBar from '@/components/NavBar.vue'
 import VideoCard from '@/components/VideoCard.vue'
 import { LayoutGrid, ChevronLeft, ChevronRight, Filter } from 'lucide-vue-next'
+import { apiCall } from '@/utils/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -42,8 +43,7 @@ const fetchCategories = async (id = '') => {
     typePid.value = id || route.params.id
     console.log('typePid.value', typePid.value)
 
-    const res = await fetch('/api/proxy?ac=list')
-    const data = await res.json()
+    const data = await apiCall({ ac: 'list' })
     categoryList.value = data.class.filter(item => item.type_pid == typePid.value) || []
     updateCurrentCategoryInfo()
   } catch (e) {
@@ -56,8 +56,7 @@ const fetchVideos = async (page = 1) => {
   loading.value = true
   try {
     // 构造请求：t=分类ID, pg=页码
-    const res = await fetch(`/api/proxy?ac=detail&t=${curTypeId.value}&pg=${page}`)
-    const data = await res.json()
+    const data = await apiCall({ ac: 'detail', t: curTypeId.value, pg: page })
 
     videoList.value = data.list || []
 

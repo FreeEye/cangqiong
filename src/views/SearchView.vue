@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { apiCall } from '@/utils/api'
 import NavBar from '@/components/NavBar.vue'
 import VideoCard from '@/components/VideoCard.vue'
 import { Search, Frown, Sparkles, ChevronRight, Clock, X } from 'lucide-vue-next'
@@ -81,8 +82,7 @@ const doSearch = async (keyword) => {
 
   try {
     // 接口参数：ac=detail & wd=关键词
-    const res = await fetch(`/api/proxy?ac=detail&wd=${encodeURIComponent(keyword)}`)
-    const data = await res.json()
+    const data = await apiCall({ ac: 'detail', wd: keyword })
 
     list.value = data.list || []
     total.value = data.total || 0

@@ -183,7 +183,7 @@ watch(() => route.path, () => {
           <Clapperboard class="h-5 w-5 text-white" />
         </div>
         <span class="text-xl font-bold tracking-tight text-white group-hover:text-purple-100 transition-colors">
-          Movie<span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">Hub</span>
+          苍穹<span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">影视</span>
         </span>
       </div>
 

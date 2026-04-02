@@ -7,14 +7,14 @@ const corsProxies = [
   'https://api.codetabs.com/v1/proxy?quest='
 ];
 
-// 视频源列表 - 按速度排序
+// 视频源列表 - 如意资源作为首选
 const videoSources = [
+  { name: '如意资源', url: 'https://cj.rycjapi.com/api.php/provide/vod/', isAvailable: true },
   { name: '极速资源', url: 'https://jszyapi.com/api.php/provide/vod/', isAvailable: true },
   { name: '非凡影视', url: 'http://ffzy5.tv/api.php/provide/vod/', isAvailable: true },
   { name: '卧龙资源', url: 'https://wolongzyw.com/api.php/provide/vod/', isAvailable: true },
   { name: '最大资源', url: 'https://api.zuidapi.com/api.php/provide/vod/', isAvailable: true },
-  { name: '无尽资源', url: 'https://api.wujinapi.me/api.php/provide/vod/', isAvailable: true },
-  { name: '如意资源', url: 'https://cj.rycjapi.com/api.php/provide/vod/', isAvailable: true }
+  { name: '无尽资源', url: 'https://api.wujinapi.me/api.php/provide/vod/', isAvailable: true }
 ];
 
 let currentProxyIndex = 0;

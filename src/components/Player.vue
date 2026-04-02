@@ -14,6 +14,8 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['ended'])
+
 const artRef = ref(null)
 let instance = null
 
@@ -75,11 +77,9 @@ const initArtplayer = () => {
           position: 'absolute',
           top: '50%',
           left: '50%',
-          // 距离中心向左偏移 100px
           transform: 'translate(calc(-50% - 100px), -50%)',
           zIndex: 50
         },
-        // 点击逻辑：必须用 function(layer) { this... }
         click: function (layer, event) {
           this.seek = Math.max(0, this.currentTime - 10)
 
@@ -96,7 +96,6 @@ const initArtplayer = () => {
           position: 'absolute',
           top: '50%',
           left: '50%',
-          // 距离中心向右偏移 100px
           transform: 'translate(calc(-50% + 100px), -50%)',
           zIndex: 50
         },
@@ -127,6 +126,10 @@ const initArtplayer = () => {
         }
       }
     }
+  })
+
+  instance.on('video:ended', () => {
+    emit('ended')
   })
 }
 

@@ -28,7 +28,7 @@ const recommendedVideos = ref([])
 // 评论功能
 const comments = ref([])
 const newComment = ref('')
-const showCommentSection = ref(false)
+const showCommentSection = ref(true)
 
 // 加载评论
 const loadComments = () => {
@@ -348,12 +348,6 @@ onMounted(() => {
     saveWatchHistory()
   }, 15000)
 
-  // 监听视频播放结束事件
-  const video = document.querySelector('video')
-  if (video) {
-    video.addEventListener('ended', autoPlayNextEpisode)
-  }
-
   // 监听流量统计更新事件
   window.addEventListener('trafficStatsUpdated', loadCurrentViews)
 })
@@ -364,11 +358,6 @@ onBeforeUnmount(() => {
   if (watchTimer) clearTimeout(watchTimer)
   // 移除事件监听
   window.removeEventListener('trafficStatsUpdated', loadCurrentViews)
-  // 移除视频播放结束事件监听
-  const video = document.querySelector('video')
-  if (video) {
-    video.removeEventListener('ended', autoPlayNextEpisode)
-  }
   // 恢复原页面标题
   document.title = '苍穹影视'
 })
@@ -399,6 +388,7 @@ onUnmounted(() => {
             v-if="currentEpisodeUrl"
             :url="currentEpisodeUrl"
             :poster="videoDetail?.vod_pic"
+            @ended="autoPlayNextEpisode"
           />
 
           <!-- 如果没有 URL (比如刚加载时)，显示封面 -->

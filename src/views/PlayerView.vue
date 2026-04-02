@@ -30,39 +30,64 @@ const comments = ref([])
 const newComment = ref('')
 const showCommentSection = ref(true)
 
+// 生成基于视频ID的评论数据
+const generateVideoComments = (videoId) => {
+  const commentTemplates = [
+    { user: '小明同学', content: '这部剧太好看了！剧情紧凑，演员演技在线！', likes: 128 },
+    { user: '影视爱好者', content: '画面制作精良，配乐也很到位，值得一看！', likes: 89 },
+    { user: '追剧达人', content: '熬夜看完了，根本停不下来！期待续集！', likes: 256 },
+    { user: '电影迷', content: '特效做得太棒了，每一帧都是壁纸级别！', likes: 167 },
+    { user: '剧情控', content: '剧情反转太精彩了，完全猜不到结局！', likes: 234 },
+    { user: '演技派', content: '主角的演技真的太棒了，代入感很强！', likes: 145 },
+    { user: '细节党', content: '导演对细节的把控很到位，很多伏笔都回收了！', likes: 198 },
+    { user: '配乐迷', content: 'BGM选得太好了，每次响起都起鸡皮疙瘩！', likes: 112 },
+    { user: '老观众', content: '这是我今年看过最好的剧，没有之一！', likes: 289 },
+    { user: '新粉丝', content: '被朋友安利来看的，果然没让我失望！', likes: 76 },
+    { user: '资深影评人', content: '剧本扎实，演员在线，制作精良，推荐！', likes: 312 },
+    { user: '路人甲', content: '本来没抱太大期望，结果一口气看完了！', likes: 154 }
+  ]
+  
+  // 根据视频ID生成固定的随机种子
+  const seed = videoId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  const random = (max) => {
+    const x = Math.sin(seed + max) * 10000
+    return Math.floor((x - Math.floor(x)) * max)
+  }
+  
+  // 随机选择3-4条评论
+  const commentCount = 3 + random(2)
+  const selectedComments = []
+  const usedIndices = new Set()
+  
+  for (let i = 0; i < commentCount; i++) {
+    let index
+    do {
+      index = random(commentTemplates.length)
+    } while (usedIndices.has(index))
+    usedIndices.add(index)
+    
+    const template = commentTemplates[index]
+    selectedComments.push({
+      id: i + 1,
+      user: template.user,
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${videoId}-${i}`,
+      content: template.content,
+      time: ['刚刚', '2小时前', '5小时前', '1天前', '3天前'][random(5)],
+      likes: template.likes + random(50)
+    })
+  }
+  
+  return selectedComments
+}
+
 // 加载评论
 const loadComments = () => {
   const savedComments = localStorage.getItem(`comments_${route.params.id}`)
   if (savedComments) {
     comments.value = JSON.parse(savedComments)
   } else {
-    // 默认评论（模拟真实数据）
-    comments.value = [
-      {
-        id: 1,
-        user: '小明同学',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=1',
-        content: '这部剧太好看了！剧情紧凑，演员演技在线！',
-        time: '2小时前',
-        likes: 128
-      },
-      {
-        id: 2,
-        user: '影视爱好者',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=2',
-        content: '画面制作精良，配乐也很到位，值得一看！',
-        time: '5小时前',
-        likes: 89
-      },
-      {
-        id: 3,
-        user: '追剧达人',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=3',
-        content: '熬夜看完了，根本停不下来！期待续集！',
-        time: '1天前',
-        likes: 256
-      }
-    ]
+    // 使用基于视频ID生成的评论数据
+    comments.value = generateVideoComments(route.params.id.toString())
     saveComments()
   }
 }
@@ -363,12 +388,6 @@ onUnmounted(() => {
 <template>
   <div class="min-h-screen bg-[#0f1014] text-gray-100 font-sans pb-10">
     <NavBar />
-
-    <!-- 实时观看人数显示 -->
-    <div class="fixed top-20 right-4 z-50 flex items-center gap-2.5 bg-gradient-to-r from-orange-500 via-red-500 to-pink-500/95 backdrop-blur-xl px-4 py-2.5 rounded-full shadow-2xl shadow-red-500/40 border border-white/10">
-      <Flame class="w-4.5 h-4.5 text-white animate-pulse" />
-      <span class="text-white text-sm font-black">{{ currentViews > 0 ? currentViews : Math.floor(Math.random() * 3000) + 1000 }} 人在看</span>
-    </div>
 
     <!-- 只有数据加载完成后才显示 -->
     <div v-if="videoDetail" class="pt-20 mx-auto max-w-7xl px-3 sm:px-4 lg:px-8 flex flex-col lg:flex-row gap-4 lg:gap-8">

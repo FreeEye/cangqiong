@@ -1,10 +1,8 @@
 // API 工具函数 - 用于处理静态网站环境下的API调用
 
-// CORS 代理列表
+// CORS 代理列表 - 经过测试筛选，保留速度较快的代理
 const corsProxies = [
-  'https://api.allorigins.win/raw?url=',
-  'https://corsproxy.io/?',
-  'https://api.codetabs.com/v1/proxy?quest='
+  'https://api.allorigins.win/raw?url=' // 速度较快且稳定的代理
 ];
 
 // 视频源列表 - 如意资源作为首选

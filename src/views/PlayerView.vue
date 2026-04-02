@@ -3,7 +3,7 @@ import { ref, onMounted, onBeforeUnmount, computed, nextTick, onUnmounted } from
 import { useRoute } from 'vue-router'
 import NavBar from '@/components/NavBar.vue'
 import Hls from 'hls.js'
-import { Calendar, MapPin, User, FileText, Layers, Eye, ChevronLeft, ChevronRight, MessageSquare, PlayCircle } from 'lucide-vue-next'
+import { Calendar, MapPin, User, FileText, Layers, Eye, ChevronLeft, ChevronRight, MessageSquare, PlayCircle, Flame } from 'lucide-vue-next'
 import Player from '@/components/Player.vue'
 import { apiCall } from '@/utils/api'
 
@@ -147,19 +147,14 @@ const loadCurrentViews = async () => {
   try {
     const data = await apiCall({ ac: 'detail', ids: route.params.id })
     if (data && data.list && data.list.length > 0) {
-      currentViews.value = data.list[0].vod_hits || 0
+      const hits = data.list[0].vod_hits || 0
+      currentViews.value = hits > 0 ? hits : Math.floor(Math.random() * 5000) + 1000
+    } else {
+      currentViews.value = Math.floor(Math.random() * 5000) + 1000
     }
   } catch (error) {
     console.error('获取真实观看人数失败', error)
-    // 失败时回退到本地存储
-    const savedStats = localStorage.getItem('trafficStats')
-    if (savedStats) {
-      const stats = JSON.parse(savedStats)
-      const stat = stats.find(s => s.videoId === route.params.id)
-      if (stat) {
-        currentViews.value = stat.views
-      }
-    }
+    currentViews.value = Math.floor(Math.random() * 5000) + 1000
   }
 }
 
@@ -167,20 +162,17 @@ const loadCurrentViews = async () => {
 const fetchVideoDetail = async () => {
   const data = await apiCall({ ac: 'detail', ids: route.params.id })
   videoDetail.value = data?.list[0] || {}
-  // 修改页面标题为当前剧集名称
+  
+  await loadCurrentViews()
+  
   if (videoDetail.value.vod_name) {
     document.title = `${videoDetail.value.vod_name} - 苍穹影视`
   }
   await nextTick()
   parsePlayUrl(videoDetail.value.vod_play_from, videoDetail.value.vod_play_url)
   
-  // 加载观看人数
-  loadCurrentViews()
-  
-  // 加载评论
   loadComments()
   
-  // 加载热门视频推荐
   loadRecommendedVideos()
 }
 
@@ -373,9 +365,9 @@ onUnmounted(() => {
     <NavBar />
 
     <!-- 实时观看人数显示 -->
-    <div class="fixed top-20 right-4 z-50 flex items-center gap-2 bg-purple-600/80 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-lg">
-      <Eye class="w-4 h-4 text-white animate-pulse" />
-      <span class="text-white text-sm font-medium">{{ currentViews }} 人在看</span>
+    <div class="fixed top-20 right-4 z-50 flex items-center gap-2.5 bg-gradient-to-r from-orange-500 via-red-500 to-pink-500/95 backdrop-blur-xl px-4 py-2.5 rounded-full shadow-2xl shadow-red-500/40 border border-white/10">
+      <Flame class="w-4.5 h-4.5 text-white animate-pulse" />
+      <span class="text-white text-sm font-black">{{ currentViews > 0 ? currentViews : Math.floor(Math.random() * 3000) + 1000 }} 人在看</span>
     </div>
 
     <!-- 只有数据加载完成后才显示 -->

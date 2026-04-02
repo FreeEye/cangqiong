@@ -34,6 +34,17 @@ const router = createRouter({
       path: '/history',
       name: 'history',
       component: () => import('@/views/HistoryView.vue')
+    },
+    {
+      path: '/admin/login',
+      name: 'admin-login',
+      component: () => import('@/views/admin/LoginView.vue')
+    },
+    {
+      path: '/admin/dashboard',
+      name: 'admin-dashboard',
+      component: () => import('@/views/admin/DashboardView.vue'),
+      meta: { requiresAuth: true }
     }
   ],
   // 移除自动滚动到顶部，由组件自己控制滚动位置

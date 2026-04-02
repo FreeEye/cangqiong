@@ -1,6 +1,6 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Clapperboard, Menu, X, Clock, User } from 'lucide-vue-next' // 引入 Menu 和 X 图标
+import { Search, Clapperboard, Menu, X, Clock, User, BarChart3 } from 'lucide-vue-next' // 引入 Menu 和 X 图标
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import useProjectStore from '@/stores/project'
 import { apiCall } from '@/utils/api'
@@ -276,6 +276,11 @@ watch(() => route.path, () => {
             </div>
           </button>
         </div>
+        <!-- 统计页面入口 -->
+        <router-link to="/admin/login" class="flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br from-orange-500/20 to-red-500/20 text-orange-400 hover:text-white hover:from-orange-500 hover:to-red-500 transition-all duration-300 border border-orange-500/30">
+          <BarChart3 class="w-5 h-5" />
+        </router-link>
+        
         <!-- 个人观看历史 -->
         <div @click="toHistoryView" class="cursor-pointer flex items-center justify-center w-9 h-9 rounded-full bg-[#1a1b21] text-gray-400 hover:text-white hover:bg-[#25262c] transition-all duration-300">
           <User class="w-5 h-5" />

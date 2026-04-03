@@ -1,146 +1,255 @@
-// API 工具函数 - 用于处理静态网站环境下的API调用
+// API 工具函数 - 多视频源整合管理
 
-// CORS 代理列表 - 经过测试筛选，保留速度较快的代理
+// CORS 代理列表
 const corsProxies = [
-  'https://api.allorigins.win/raw?url=' // 速度较快且稳定的代理
+  'https://api.allorigins.win/raw?url='
 ];
 
-// 视频源列表 - 如意资源作为首选
-const videoSources = [
-  { name: '如意资源', url: 'https://cj.rycjapi.com/api.php/provide/vod/', isAvailable: true },
-  { name: '极速资源', url: 'https://jszyapi.com/api.php/provide/vod/', isAvailable: true },
-  { name: '非凡影视', url: 'http://ffzy5.tv/api.php/provide/vod/', isAvailable: true },
-  { name: '卧龙资源', url: 'https://wolongzyw.com/api.php/provide/vod/', isAvailable: true },
-  { name: '最大资源', url: 'https://api.zuidapi.com/api.php/provide/vod/', isAvailable: true },
-  { name: '无尽资源', url: 'https://api.wujinapi.me/api.php/provide/vod/', isAvailable: true }
+// 视频源列表 - 所有可用源
+export const videoSources = [
+  { name: '如意资源', url: 'https://cj.rycjapi.com/api.php/provide/vod/', isAvailable: true, priority: 1 },
+  { name: '极速资源', url: 'https://jszyapi.com/api.php/provide/vod/', isAvailable: true, priority: 2 },
+  { name: '非凡影视', url: 'http://ffzy5.tv/api.php/provide/vod/', isAvailable: true, priority: 3 },
+  { name: '卧龙资源', url: 'https://wolongzyw.com/api.php/provide/vod/', isAvailable: true, priority: 4 },
+  { name: '最大资源', url: 'https://api.zuidapi.com/api.php/provide/vod/', isAvailable: true, priority: 5 },
+  { name: '无尽资源', url: 'https://api.wujinapi.me/api.php/provide/vod/', isAvailable: true, priority: 6 }
 ];
 
-let currentProxyIndex = 0;
+// 当前选中的视频源索引
+let currentSourceIndex = 0;
+
+// 获取当前视频源
+export const getCurrentSource = () => videoSources[currentSourceIndex];
+
+// 设置当前视频源
+export const setCurrentSource = (index) => {
+  if (index >= 0 && index < videoSources.length) {
+    currentSourceIndex = index;
+    // 保存到localStorage
+    localStorage.setItem('currentVideoSource', index.toString());
+    return true;
+  }
+  return false;
+};
+
+// 初始化视频源设置
+export const initSourceSetting = () => {
+  const saved = localStorage.getItem('currentVideoSource');
+  if (saved !== null) {
+    currentSourceIndex = parseInt(saved);
+  }
+};
 
 // 获取当前代理
-const getCurrentProxy = () => corsProxies[currentProxyIndex % corsProxies.length];
+const getCurrentProxy = () => corsProxies[0];
 
-// 切换到下一个代理
-const nextProxy = () => {
-  currentProxyIndex++;
-  console.log(`切换到代理 ${currentProxyIndex % corsProxies.length + 1}`);
-};
-
-// 直接调用外部API，使用CORS代理
-const directApiCall = async (params) => {
+// 从指定源获取数据
+const fetchFromSource = async (source, params, timeout = 10000) => {
   const queryString = new URLSearchParams(params).toString();
+  const targetUrl = `${source.url}?${queryString}`;
+  const proxyUrl = `${getCurrentProxy()}${encodeURIComponent(targetUrl)}`;
   
-  // 依次尝试各个视频源
-  for (const source of videoSources) {
-    if (!source.isAvailable) continue;
-    
-    // 对每个视频源尝试所有代理
-    for (let proxyAttempt = 0; proxyAttempt < corsProxies.length; proxyAttempt++) {
-      try {
-        const targetUrl = `${source.url}?${queryString}`;
-        const proxyUrl = `${getCurrentProxy()}${encodeURIComponent(targetUrl)}`;
-        
-        console.log(`尝试使用 ${source.name} (代理 ${proxyAttempt + 1}):`, targetUrl);
-        
-        const response = await fetch(proxyUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'application/json'
-          },
-          signal: AbortSignal.timeout(8000)
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log(`${source.name} 调用成功`);
-        return data;
-      } catch (error) {
-        console.warn(`${source.name} (代理 ${proxyAttempt + 1}) 调用失败:`, error);
-        nextProxy();
-        continue;
-      }
-    }
-    
-    // 这个视频源的所有代理都失败了，标记为不可用
-    source.isAvailable = false;
+  console.log(`[API] 请求 ${source.name}:`, targetUrl);
+  
+  const response = await fetch(proxyUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Accept': 'application/json'
+    },
+    signal: AbortSignal.timeout(timeout)
+  });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
   }
   
-  // 如果所有视频源都失败了，返回模拟数据
-  console.warn('所有视频源调用失败，使用模拟数据');
-  return getMockData(params);
+  const data = await response.json();
+  
+  // 验证数据格式
+  if (!data || !Array.isArray(data.list)) {
+    throw new Error('Invalid data format');
+  }
+  
+  // 为数据添加来源标记
+  data.list = data.list.map(item => ({
+    ...item,
+    _source: source.name,
+    _sourceIndex: videoSources.indexOf(source)
+  }));
+  
+  return data;
 };
 
-// 模拟数据 - 当API调用失败时使用
-const getMockData = (params) => {
-  const { ac, ids, wd, t, pg } = params;
+// 从所有可用源获取数据并整合
+export const fetchFromAllSources = async (params, maxResults = 50) => {
+  const results = [];
+  const errors = [];
   
-  if (ac === 'detail' && ids) {
-    // 单个视频详情
-    return {
-      list: [{
-        vod_id: ids,
-        vod_name: '苍穹影视 - 测试视频',
-        vod_pic: 'https://picsum.photos/300/450?random=1',
-        vod_content: '这是一个测试视频的描述信息，用于演示网站功能。',
-        vod_year: '2024',
-        vod_area: '中国大陆',
-        vod_actor: '测试演员',
-        vod_hits: Math.floor(Math.random() * 1000) + 500,
-        vod_play_from: '测试源',
-        vod_play_url: '第1集$https://example.com/video1.m3u8'
-      }]
-    };
-  } else if (ac === 'detail' && wd) {
-    // 搜索功能
-    return {
-      list: Array.from({ length: 6 }, (_, i) => ({
-        vod_id: `search-${i + 1}`,
-        vod_name: `搜索结果 ${i + 1} - ${wd}`,
-        vod_pic: `https://picsum.photos/300/450?random=${i + 10}`,
-        vod_year: '2024',
-        vod_area: '中国大陆'
-      }))
-    };
-  } else if (ac === 'detail') {
-    // 视频列表
-    return {
-      list: Array.from({ length: 12 }, (_, i) => ({
-        vod_id: `video-${i + 1}`,
-        vod_name: `热门视频 ${i + 1}`,
-        vod_pic: `https://picsum.photos/300/450?random=${i + 20}`,
-        vod_year: '2024',
-        vod_area: '中国大陆',
-        vod_hits: Math.floor(Math.random() * 1000) + 500
-      }))
-    };
-  } else if (ac === 'list') {
-    // 分类列表
-    return {
-      class: [
-        { type_id: 1, type_name: '电影' },
-        { type_id: 2, type_name: '电视剧' },
-        { type_id: 3, type_name: '动漫' },
-        { type_id: 4, type_name: '综艺' }
-      ]
-    };
+  // 并行请求所有源
+  const promises = videoSources.map(async (source) => {
+    try {
+      const data = await fetchFromSource(source, params, 8000);
+      return { source: source.name, data, success: true };
+    } catch (error) {
+      return { source: source.name, error: error.message, success: false };
+    }
+  });
+  
+  const responses = await Promise.allSettled(promises);
+  
+  responses.forEach((result, index) => {
+    if (result.status === 'fulfilled' && result.value.success) {
+      const { data, source } = result.value;
+      if (data.list && data.list.length > 0) {
+        results.push(...data.list);
+      }
+    } else {
+      errors.push({
+        source: videoSources[index].name,
+        error: result.status === 'fulfilled' ? result.value.error : result.reason?.message
+      });
+    }
+  });
+  
+  // 去重 - 根据视频名称和年份
+  const uniqueResults = [];
+  const seen = new Set();
+  
+  results.forEach(item => {
+    const key = `${item.vod_name}_${item.vod_year}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      uniqueResults.push(item);
+    }
+  });
+  
+  // 按点击量排序
+  uniqueResults.sort((a, b) => (b.vod_hits || 0) - (a.vod_hits || 0));
+  
+  console.log(`[API] 整合完成: ${uniqueResults.length} 个视频, 错误:`, errors);
+  
+  return {
+    list: uniqueResults.slice(0, maxResults),
+    total: uniqueResults.length,
+    errors: errors.length > 0 ? errors : undefined
+  };
+};
+
+// 从当前选中的源获取数据
+export const fetchFromCurrentSource = async (params) => {
+  const source = getCurrentSource();
+  return await fetchFromSource(source, params);
+};
+
+// 统一的API调用函数
+export const apiCall = async (params, options = {}) => {
+  const { useAllSources = false, maxResults = 50 } = options;
+  
+  // 初始化源设置
+  initSourceSetting();
+  
+  try {
+    if (useAllSources) {
+      // 整合所有源的数据
+      return await fetchFromAllSources(params, maxResults);
+    } else {
+      // 只从当前选中的源获取
+      return await fetchFromCurrentSource(params);
+    }
+  } catch (error) {
+    console.error('[API] 调用失败:', error);
+    // 返回空数据而不是模拟数据
+    return { list: [], total: 0, error: error.message };
+  }
+};
+
+// 搜索视频
+export const searchVideos = async (keyword, options = {}) => {
+  return await apiCall({ ac: 'detail', wd: keyword }, options);
+};
+
+// 获取视频详情
+export const getVideoDetail = async (id, sourceIndex = null) => {
+  // 如果指定了源，使用该源
+  if (sourceIndex !== null && videoSources[sourceIndex]) {
+    try {
+      const data = await fetchFromSource(videoSources[sourceIndex], { ac: 'detail', ids: id });
+      if (data.list && data.list.length > 0) {
+        return data;
+      }
+    } catch (e) {
+      console.warn(`[API] 源 ${sourceIndex} 获取失败，尝试其他源`);
+    }
+  }
+  
+  // 尝试所有源
+  for (let i = 0; i < videoSources.length; i++) {
+    try {
+      const data = await fetchFromSource(videoSources[i], { ac: 'detail', ids: id });
+      if (data.list && data.list.length > 0) {
+        return data;
+      }
+    } catch (e) {
+      continue;
+    }
   }
   
   return { list: [] };
 };
 
-// 统一的API调用函数
-export const apiCall = async (params) => {
-  // 如果是开发环境，使用代理
-  if (import.meta.env.DEV) {
-    const res = await fetch(`/api/proxy?${new URLSearchParams(params).toString()}`);
-    return await res.json();
+// 获取分类列表
+export const getCategories = async () => {
+  try {
+    const data = await fetchFromCurrentSource({ ac: 'list' });
+    return data.class || [];
+  } catch (error) {
+    console.error('[API] 获取分类失败:', error);
+    return [];
   }
-  
-  // 生产环境使用直接调用
-  return await directApiCall(params);
+};
+
+// 获取分类视频
+export const getCategoryVideos = async (typeId, page = 1, options = {}) => {
+  return await apiCall({ 
+    ac: 'detail', 
+    t: typeId,
+    pg: page 
+  }, options);
+};
+
+// 获取统计数据（基于真实数据）
+export const getStats = async () => {
+  try {
+    // 从所有源获取数据计算统计
+    const allData = await fetchFromAllSources({ ac: 'detail' }, 100);
+    
+    const videos = allData.list || [];
+    const totalViews = videos.reduce((sum, v) => sum + (parseInt(v.vod_hits) || 0), 0);
+    
+    // 按类型统计
+    const typeStats = {};
+    videos.forEach(v => {
+      const type = v.vod_type_name || v.type_name || '其他';
+      if (!typeStats[type]) {
+        typeStats[type] = { count: 0, views: 0 };
+      }
+      typeStats[type].count++;
+      typeStats[type].views += parseInt(v.vod_hits) || 0;
+    });
+    
+    return {
+      totalVideos: videos.length,
+      totalViews: totalViews,
+      typeStats: typeStats,
+      sourceStats: videoSources.map(s => ({
+        name: s.name,
+        isAvailable: s.isAvailable
+      }))
+    };
+  } catch (error) {
+    console.error('[API] 获取统计失败:', error);
+    return { totalVideos: 0, totalViews: 0, typeStats: {}, sourceStats: [] };
+  }
 };
 
 export default apiCall;

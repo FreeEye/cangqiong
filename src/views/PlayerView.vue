@@ -30,54 +30,15 @@ const comments = ref([])
 const newComment = ref('')
 const showCommentSection = ref(true)
 
-// 生成基于视频ID的评论数据
+// 评论数据 - 使用真实用户数据
 const generateVideoComments = (videoId) => {
-  const commentTemplates = [
-    { user: '小明同学', content: '这部剧太好看了！剧情紧凑，演员演技在线！', likes: 128 },
-    { user: '影视爱好者', content: '画面制作精良，配乐也很到位，值得一看！', likes: 89 },
-    { user: '追剧达人', content: '熬夜看完了，根本停不下来！期待续集！', likes: 256 },
-    { user: '电影迷', content: '特效做得太棒了，每一帧都是壁纸级别！', likes: 167 },
-    { user: '剧情控', content: '剧情反转太精彩了，完全猜不到结局！', likes: 234 },
-    { user: '演技派', content: '主角的演技真的太棒了，代入感很强！', likes: 145 },
-    { user: '细节党', content: '导演对细节的把控很到位，很多伏笔都回收了！', likes: 198 },
-    { user: '配乐迷', content: 'BGM选得太好了，每次响起都起鸡皮疙瘩！', likes: 112 },
-    { user: '老观众', content: '这是我今年看过最好的剧，没有之一！', likes: 289 },
-    { user: '新粉丝', content: '被朋友安利来看的，果然没让我失望！', likes: 76 },
-    { user: '资深影评人', content: '剧本扎实，演员在线，制作精良，推荐！', likes: 312 },
-    { user: '路人甲', content: '本来没抱太大期望，结果一口气看完了！', likes: 154 }
-  ]
-  
-  // 根据视频ID生成固定的随机种子
-  const seed = videoId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-  const random = (max) => {
-    const x = Math.sin(seed + max) * 10000
-    return Math.floor((x - Math.floor(x)) * max)
+  // 如果没有存储的评论，返回空数组
+  const savedComments = localStorage.getItem(`comments_${videoId}`)
+  if (savedComments) {
+    return JSON.parse(savedComments)
   }
-  
-  // 随机选择3-4条评论
-  const commentCount = 3 + random(2)
-  const selectedComments = []
-  const usedIndices = new Set()
-  
-  for (let i = 0; i < commentCount; i++) {
-    let index
-    do {
-      index = random(commentTemplates.length)
-    } while (usedIndices.has(index))
-    usedIndices.add(index)
-    
-    const template = commentTemplates[index]
-    selectedComments.push({
-      id: i + 1,
-      user: template.user,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${videoId}-${i}`,
-      content: template.content,
-      time: ['刚刚', '2小时前', '5小时前', '1天前', '3天前'][random(5)],
-      likes: template.likes + random(50)
-    })
-  }
-  
-  return selectedComments
+  // 默认返回空数组，不生成模拟数据
+  return []
 }
 
 // 加载评论
@@ -201,18 +162,29 @@ const fetchVideoDetail = async () => {
   loadRecommendedVideos()
 }
 
-// 加载热门视频推荐
+// 加载热门视频推荐 - 使用真实数据
 const loadRecommendedVideos = async () => {
   try {
-    const data = await apiCall({ ac: 'detail' })
-    if (data && data.list) {
-      // 过滤掉当前视频，取前6个作为推荐
-      recommendedVideos.value = data.list
-        .filter(video => video.vod_id !== route.params.id)
+    // 使用所有源获取热门视频（按点击量排序）
+    const { fetchFromAllSources } = await import('@/utils/api')
+    const data = await fetchFromAllSources({ ac: 'detail' }, 50)
+    
+    if (data && data.list && data.list.length > 0) {
+      // 按点击量排序，过滤掉当前视频，取前6个作为推荐
+      const sortedVideos = data.list
+        .filter(video => video.vod_id !== route.params.id && video.vod_id !== videoDetail.value?.vod_id)
+        .sort((a, b) => (parseInt(b.vod_hits) || 0) - (parseInt(a.vod_hits) || 0))
         .slice(0, 6)
+      
+      recommendedVideos.value = sortedVideos
+      console.log('[Player] 加载热门推荐:', sortedVideos.length, '个视频')
     }
   } catch (error) {
     console.error('加载推荐视频失败', error)
+    // 如果获取失败，使用当前视频的相关数据
+    if (videoDetail.value) {
+      recommendedVideos.value = []
+    }
   }
 }
 

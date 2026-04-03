@@ -2,10 +2,7 @@
 
 // CORS 代理列表 - 多个备用代理
 const corsProxies = [
-  'https://corsproxy.io/?',
-  'https://api.allorigins.win/raw?url=',
-  'https://proxy.cors.sh/',
-  'https://cors-anywhere.herokuapp.com/'
+  'https://api.codetabs.com/v1/proxy?quest='
 ];
 
 // 当前代理索引
@@ -77,10 +74,22 @@ const fetchFromSource = async (source, params, timeout = 10000, retryCount = 0) 
     }
     
     const data = await response.json();
+
+    // 验证数据格式 - 更详细的日志
+    if (!data) {
+      console.error(`[API] ${source.name} 返回空数据`);
+      throw new Error('Invalid data format: empty response');
+    }
     
-    // 验证数据格式
-    if (!data || !Array.isArray(data.list)) {
-      throw new Error('Invalid data format');
+    // 处理 list 为对象的情况（某些API返回对象而非数组）
+    if (data.list && typeof data.list === 'object' && !Array.isArray(data.list)) {
+      // 将对象转换为数组
+      data.list = Object.values(data.list);
+    }
+    
+    if (!Array.isArray(data.list)) {
+      console.error(`[API] ${source.name} 数据格式错误:`, data);
+      throw new Error(`Invalid data format: list is not an array, got ${typeof data.list}`);
     }
     
     // 为数据添加来源标记

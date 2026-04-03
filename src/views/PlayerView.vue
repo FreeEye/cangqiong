@@ -1,22 +1,20 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, computed, nextTick, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, onMounted, onBeforeUnmount, computed, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import NavBar from '@/components/NavBar.vue'
-import Hls from 'hls.js'
 import { Calendar, MapPin, User, FileText, Layers, Eye, ChevronLeft, ChevronRight, MessageSquare, PlayCircle, Flame } from 'lucide-vue-next'
 import Player from '@/components/Player.vue'
 import { apiCall } from '@/utils/api'
 
 // --- 状态定义 ---
 const route = useRoute()
+const router = useRouter()
 const videoDetail = ref(null) // 存储接口返回的原始数据
 const playSources = ref([]) // 解析后的播放源数据结构
 const currentSourceIndex = ref(0) // 当前选中的播放源 (Tab索引)
 const currentEpisodeUrl = ref('') // 当前播放的URL
 const currentEpisodeName = ref('') // 当前播放的集数名称
-const videoPlayer = ref(null) // video DOM 引用
 const currentEpisodeIndex = ref(0) // 当前集数索引
-let hls = null // Hls.js 实例
 let watchTimer = null // 15秒定时器
 
 // 实时观看人数
@@ -146,20 +144,29 @@ const loadCurrentViews = async () => {
 
 // --- 核心逻辑 1: 获取并解析数据 ---
 const fetchVideoDetail = async () => {
-  const data = await apiCall({ ac: 'detail', ids: route.params.id })
-  videoDetail.value = data?.list[0] || {}
-  
-  await loadCurrentViews()
-  
-  if (videoDetail.value.vod_name) {
-    document.title = `${videoDetail.value.vod_name} - 苍穹影视`
+  try {
+    const data = await apiCall({ ac: 'detail', ids: route.params.id })
+    videoDetail.value = data?.list[0] || {}
+    
+    if (!videoDetail.value.vod_name) {
+      console.error('[Player] 获取视频详情失败，数据为空')
+      return
+    }
+    
+    await loadCurrentViews()
+    
+    if (videoDetail.value.vod_name) {
+      document.title = `${videoDetail.value.vod_name} - 苍穹影视`
+    }
+    parsePlayUrl(videoDetail.value.vod_play_from, videoDetail.value.vod_play_url)
+    
+    loadComments()
+    
+    loadRecommendedVideos()
+  } catch (error) {
+    console.error('[Player] 获取视频详情失败:', error)
+    videoDetail.value = {}
   }
-  await nextTick()
-  parsePlayUrl(videoDetail.value.vod_play_from, videoDetail.value.vod_play_url)
-  
-  loadComments()
-  
-  loadRecommendedVideos()
 }
 
 // 加载热门视频推荐 - 使用真实数据
@@ -265,9 +272,28 @@ const parsePlayUrl = (playFrom, playUrl) => {
   }
 }
 
-// --- 核心逻辑 3: 切换集数与 HLS 播放 ---
+// --- 核心逻辑 3: 切换集数 ---
 const playEpisode = (url, name, index = -1) => {
-  currentEpisodeUrl.value = url
+  console.log('[Player] 原始 URL:', url)
+  
+  // 为视频 URL 添加代理（如果需要）
+  let processedUrl = url
+  
+  // 检查是否需要代理（某些视频源的 URL 需要代理才能播放）
+  // 只有特定域名才需要代理
+  const needsProxy = url.includes('ffzy-plays.com') || 
+                     url.includes('/share/') ||
+                     (url.includes('ffzy5.tv') && !url.endsWith('.m3u8'))
+  
+  if (needsProxy) {
+    // 使用 codetabs 代理
+    processedUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+    console.log('[Player] 使用代理播放:', processedUrl)
+  } else {
+    console.log('[Player] 直接播放:', url)
+  }
+  
+  currentEpisodeUrl.value = processedUrl
   currentEpisodeName.value = name
   
   // 更新当前集数索引
@@ -284,20 +310,6 @@ const playEpisode = (url, name, index = -1) => {
 
   // 切换集数时保存观看历史
   saveWatchHistory()
-
-  if (Hls.isSupported()) {
-    if (hls) hls.destroy() // 切换前销毁旧实例
-    hls = new Hls()
-    hls.loadSource(url)
-    hls.attachMedia(videoPlayer.value)
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      videoPlayer.value.play()
-    })
-  } else if (videoPlayer.value.canPlayType('application/vnd.apple.mpegurl')) {
-    // 兼容 Safari
-    videoPlayer.value.src = url
-    videoPlayer.value.play()
-  }
 }
 
 // 切换到上一集
@@ -316,6 +328,22 @@ const playNextEpisode = () => {
     const nextEpisode = episodes[currentEpisodeIndex.value + 1]
     playEpisode(nextEpisode.url, nextEpisode.name, currentEpisodeIndex.value + 1)
   }
+}
+
+// 跳转到指定视频
+const goToVideo = (videoId) => {
+  // 如果点击的是当前视频，不做任何操作
+  if (videoId === route.params.id) {
+    return
+  }
+  
+  // 使用 router.push 跳转，但需要触发页面刷新
+  router.push(`/player/${videoId}`)
+  
+  // 强制刷新页面重新加载数据
+  setTimeout(() => {
+    window.location.reload()
+  }, 100)
 }
 
 // 自动播放下一集
@@ -342,7 +370,6 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  if (hls) hls.destroy()
   // 清除定时器
   if (watchTimer) clearTimeout(watchTimer)
   // 移除事件监听
@@ -566,7 +593,7 @@ onUnmounted(() => {
         <div
           v-for="video in recommendedVideos"
           :key="video.vod_id"
-          @click="$router.push(`/player/${video.vod_id}`)"
+          @click="goToVideo(video.vod_id)"
           class="group relative flex flex-col gap-2 cursor-pointer"
         >
           <!-- 封面容器 -->

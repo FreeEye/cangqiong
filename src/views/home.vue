@@ -74,43 +74,41 @@ const loadVideoData = async () => {
       // 轮播展示最新的10个视频
       carouselVideos.value = sortedByTime.slice(0, 10)
       
-      // 分类数据 - 改进分类匹配逻辑
-      // 电影：type_id 1-6 通常表示电影相关，或名称包含"电影"
+      // 分类数据 - 基于实际API返回的type_name进行精确匹配
+      // 首先分析所有数据的type_name分布
+      const typeNameMap = {}
+      data.list.forEach(v => {
+        const typeName = v.vod_type_name || v.type_name || '其他'
+        typeNameMap[typeName] = (typeNameMap[typeName] || 0) + 1
+      })
+      console.log('[Home] Type名称分布:', typeNameMap)
+
+      // 电影：type_name包含"电影"、"动作片"、"喜剧片"、"爱情片"、"科幻片"等
       movieList.value = data.list.filter(v => {
         const typeName = (v.vod_type_name || v.type_name || '').toLowerCase()
-        const typeId = parseInt(v.vod_type || v.type_id) || 0
-        // 电影分类：type_id 1-6 或名称包含"电影"
-        return typeName.includes('电影') || (typeId >= 1 && typeId <= 6)
+        const movieKeywords = ['电影', '动作片', '喜剧片', '爱情片', '科幻片', '恐怖片', '剧情片', '战争片', '纪录片', '悬疑片', '动画片', '犯罪片', '奇幻片', '冒险片']
+        return movieKeywords.some(keyword => typeName.includes(keyword))
       }).slice(0, 10)
-      
-      // 电视剧：type_id 7-15 通常表示电视剧，或名称包含"电视剧""剧集""国产剧""美剧""韩剧"等
+
+      // 电视剧：type_name包含"电视剧"、"国产剧"、"美剧"、"韩剧"、"日剧"、"港剧"、"台剧"、"泰剧"、"海外剧"等
       tvList.value = data.list.filter(v => {
         const typeName = (v.vod_type_name || v.type_name || '').toLowerCase()
-        const typeId = parseInt(v.vod_type || v.type_id) || 0
-        return typeName.includes('电视剧') || typeName.includes('剧集') || 
-               typeName.includes('国产剧') || typeName.includes('美剧') || 
-               typeName.includes('韩剧') || typeName.includes('日剧') || 
-               typeName.includes('泰剧') || typeName.includes('港剧') || 
-               typeName.includes('台剧') || (typeId >= 7 && typeId <= 15)
+        const tvKeywords = ['电视剧', '国产剧', '美剧', '韩剧', '日剧', '港剧', '台剧', '泰剧', '海外剧', '英剧']
+        return tvKeywords.some(keyword => typeName.includes(keyword))
       }).slice(0, 10)
-      
-      // 动漫：type_id 16-25 通常表示动漫，或名称包含"动漫""动画""番剧"等
+
+      // 动漫：type_name包含"动漫"、"动画"、"番剧"、"国产动漫"、"日本动漫"、"欧美动漫"等
       animeList.value = data.list.filter(v => {
         const typeName = (v.vod_type_name || v.type_name || '').toLowerCase()
-        const typeId = parseInt(v.vod_type || v.type_id) || 0
-        return typeName.includes('动漫') || typeName.includes('动画') || 
-               typeName.includes('番剧') || typeName.includes('日本动漫') || 
-               typeName.includes('国产动漫') || typeName.includes('欧美动漫') || 
-               (typeId >= 16 && typeId <= 25)
+        const animeKeywords = ['动漫', '动画', '番剧', '国产动漫', '日本动漫', '欧美动漫']
+        return animeKeywords.some(keyword => typeName.includes(keyword))
       }).slice(0, 10)
-      
-      // 综艺：type_id 26-35 通常表示综艺，或名称包含"综艺""娱乐"等
+
+      // 综艺：type_name包含"综艺"、"真人秀"、"脱口秀"等
       varietyList.value = data.list.filter(v => {
         const typeName = (v.vod_type_name || v.type_name || '').toLowerCase()
-        const typeId = parseInt(v.vod_type || v.type_id) || 0
-        return typeName.includes('综艺') || typeName.includes('娱乐') || 
-               typeName.includes('真人秀') || typeName.includes('脱口秀') || 
-               (typeId >= 26 && typeId <= 35)
+        const varietyKeywords = ['综艺', '真人秀', '脱口秀']
+        return varietyKeywords.some(keyword => typeName.includes(keyword))
       }).slice(0, 10)
       
       // 如果分类数据不足，用热门数据补充（但确保不重复）

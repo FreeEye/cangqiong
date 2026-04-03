@@ -1,9 +1,24 @@
 // API 工具函数 - 多视频源整合管理
 
-// CORS 代理列表
+// CORS 代理列表 - 多个备用代理
 const corsProxies = [
-  'https://api.allorigins.win/raw?url='
+  'https://corsproxy.io/?',
+  'https://api.allorigins.win/raw?url=',
+  'https://proxy.cors.sh/',
+  'https://cors-anywhere.herokuapp.com/'
 ];
+
+// 当前代理索引
+let currentProxyIndex = 0;
+
+// 获取当前代理
+const getCurrentProxy = () => corsProxies[currentProxyIndex];
+
+// 切换到下一个代理
+const switchToNextProxy = () => {
+  currentProxyIndex = (currentProxyIndex + 1) % corsProxies.length;
+  console.log(`[API] 切换到代理: ${corsProxies[currentProxyIndex]}`);
+};
 
 // 视频源列表 - 所有可用源
 export const videoSources = [
@@ -40,44 +55,51 @@ export const initSourceSetting = () => {
   }
 };
 
-// 获取当前代理
-const getCurrentProxy = () => corsProxies[0];
-
-// 从指定源获取数据
-const fetchFromSource = async (source, params, timeout = 10000) => {
+// 从指定源获取数据 - 带代理切换重试
+const fetchFromSource = async (source, params, timeout = 10000, retryCount = 0) => {
   const queryString = new URLSearchParams(params).toString();
   const targetUrl = `${source.url}?${queryString}`;
   const proxyUrl = `${getCurrentProxy()}${encodeURIComponent(targetUrl)}`;
   
   console.log(`[API] 请求 ${source.name}:`, targetUrl);
   
-  const response = await fetch(proxyUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      'Accept': 'application/json'
-    },
-    signal: AbortSignal.timeout(timeout)
-  });
-  
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+  try {
+    const response = await fetch(proxyUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json'
+      },
+      signal: AbortSignal.timeout(timeout)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // 验证数据格式
+    if (!data || !Array.isArray(data.list)) {
+      throw new Error('Invalid data format');
+    }
+    
+    // 为数据添加来源标记
+    data.list = data.list.map(item => ({
+      ...item,
+      _source: source.name,
+      _sourceIndex: videoSources.indexOf(source)
+    }));
+    
+    return data;
+  } catch (error) {
+    // 如果失败且还有备用代理，尝试切换代理重试
+    if (retryCount < corsProxies.length - 1) {
+      console.log(`[API] 代理请求失败，尝试切换代理...`);
+      switchToNextProxy();
+      return fetchFromSource(source, params, timeout, retryCount + 1);
+    }
+    throw error;
   }
-  
-  const data = await response.json();
-  
-  // 验证数据格式
-  if (!data || !Array.isArray(data.list)) {
-    throw new Error('Invalid data format');
-  }
-  
-  // 为数据添加来源标记
-  data.list = data.list.map(item => ({
-    ...item,
-    _source: source.name,
-    _sourceIndex: videoSources.indexOf(source)
-  }));
-  
-  return data;
 };
 
 // 从所有可用源获取数据并整合

@@ -441,5 +441,42 @@ onUnmounted(() => {
         </div>
       </section>
     </main>
+
+    <!-- 版权声明 -->
+    <footer class="mt-16 border-t border-white/10 bg-[#0a0b0e]">
+      <div class="max-w-7xl mx-auto px-4 py-12">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+          <div>
+            <h3 class="text-lg font-bold text-white mb-4">关于苍穹影视</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">
+              苍穹影视是一个聚合多视频源的平台，致力于为用户提供高清、流畅的在线观影体验。我们整合了多个优质视频源，让您随时随地享受精彩内容。
+            </p>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-white mb-4">快速导航</h3>
+            <ul class="space-y-2 text-sm">
+              <li><a href="#/home" class="text-gray-400 hover:text-purple-400 transition-colors">首页</a></li>
+              <li><a href="#/category/1" class="text-gray-400 hover:text-purple-400 transition-colors">全部视频</a></li>
+              <li><a href="#/history" class="text-gray-400 hover:text-purple-400 transition-colors">观看历史</a></li>
+              <li><a href="#/search" class="text-gray-400 hover:text-purple-400 transition-colors">搜索</a></li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-white mb-4">免责声明</h3>
+            <p class="text-gray-400 text-sm leading-relaxed">
+              本站所有视频均来自互联网，仅供学习交流使用。版权归原网站所有，本站不承担任何法律责任。如发现侵权内容，请联系我们删除。
+            </p>
+          </div>
+        </div>
+        <div class="border-t border-white/10 pt-8 text-center">
+          <p class="text-gray-500 text-sm">
+            © {{ new Date().getFullYear() }} 苍穹影视 All Rights Reserved
+          </p>
+          <p class="text-gray-600 text-xs mt-2">
+            本站资源均来自互联网，仅供学习交流
+          </p>
+        </div>
+      </div>
+    </footer>
   </div>
 </template>

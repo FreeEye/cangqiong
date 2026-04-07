@@ -52,7 +52,7 @@ const initArtplayer = () => {
     volume: 0.5,
     isLive: false,
     muted: false,
-    autoplay: false,
+    autoplay: true,
     autoSize: true,
     screenshot: true, // 截图功能
     setting: true, // 设置面板
@@ -142,8 +142,10 @@ onMounted(() => {
 watch(() => props.url, (newUrl) => {
   if (newUrl) {
     if (instance) {
-      instance.switchUrl(newUrl)
-      instance.play()
+      instance.switchUrl(newUrl, props.poster)
+      instance.once('video:canplay', () => {
+        instance.play()
+      })
     } else {
       initArtplayer()
     }

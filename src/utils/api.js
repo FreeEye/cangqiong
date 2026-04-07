@@ -112,18 +112,34 @@ const fetchFromSource = async (source, params, timeout = 10000, retryCount = 0) 
 };
 
 // 从所有可用源获取数据并整合
-export const fetchFromAllSources = async (params, maxResults = 50) => {
+export const fetchFromAllSources = async (params, maxResults = 50, maxPages = 3) => {
   const results = [];
   const errors = [];
   
-  // 并行请求所有源
+  // 并行请求所有源的多页数据
   const promises = videoSources.map(async (source) => {
-    try {
-      const data = await fetchFromSource(source, params, 8000);
-      return { source: source.name, data, success: true };
-    } catch (error) {
-      return { source: source.name, error: error.message, success: false };
+    const sourceResults = [];
+    
+    // 获取多页数据
+    for (let page = 1; page <= maxPages; page++) {
+      try {
+        const pageParams = { ...params, pg: page };
+        const data = await fetchFromSource(source, pageParams, 8000);
+        if (data.list && data.list.length > 0) {
+          sourceResults.push(...data.list);
+          // 如果返回的数据少于预期，说明没有更多数据了
+          if (data.list.length < 20) break;
+        } else {
+          break;
+        }
+      } catch (error) {
+        // 如果某一页失败，继续尝试下一页
+        console.warn(`[API] ${source.name} 第${page}页获取失败:`, error.message);
+        break;
+      }
     }
+    
+    return { source: source.name, data: { list: sourceResults }, success: sourceResults.length > 0 };
   });
   
   const responses = await Promise.allSettled(promises);

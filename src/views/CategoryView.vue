@@ -26,8 +26,10 @@ const loading = ref(true)
 const typePid = ref('1')
 const curTypeId = ref('')
 const categoryList = ref([]) // 所有分类菜单
+const allCategories = ref([]) // 所有分类数据
 const videoList = ref([]) // 当前页视频列表
 const currentCategory = ref({}) // 当前选中的分类信息
+const parentCategory = ref({}) // 父级分类信息
 const pagination = ref({
   page: 1, // 当前页
   pagecount: 1, // 总页数
@@ -67,7 +69,14 @@ const fetchCategories = async (id = '') => {
     console.log('typePid.value', typePid.value)
 
     const data = await apiCall({ ac: 'list' })
+    allCategories.value = data.class || []
+    
+    // 获取当前分类的子分类
     categoryList.value = data.class.filter(item => item.type_pid == typePid.value) || []
+    
+    // 获取父级分类信息
+    parentCategory.value = data.class.find(item => item.type_id == typePid.value) || { type_name: '全部视频' }
+    
     updateCurrentCategoryInfo()
   } catch (e) {
     console.error('获取分类失败', e)
@@ -158,11 +167,10 @@ const clearSearch = () => {
 
 // --- 辅助：根据ID找到当前分类的名字 ---
 const updateCurrentCategoryInfo = () => {
-  if (categoryList.value.length > 0) {
-    currentCategory.value = categoryList.value.find(c => c.type_pid == typePid.value) || { type_name: '全部视频' }
-    console.log('currentCategory.value', currentCategory.value)
-
-    curTypeId.value = currentCategory.value.type_id || ''
+  if (curTypeId.value && allCategories.value.length > 0) {
+    currentCategory.value = allCategories.value.find(c => c.type_id == curTypeId.value) || {}
+  } else {
+    currentCategory.value = {}
   }
 }
 
@@ -265,7 +273,7 @@ watch(curTypeId,
             <div class="w-2 h-10 bg-gradient-to-b from-orange-500 to-red-500 rounded-full shadow-lg shadow-orange-500/50" />
             <LayoutGrid class="w-8 h-8 text-orange-500" />
             <span class="bg-gradient-to-r from-white via-orange-200 to-pink-200 bg-clip-text text-transparent">
-              {{ isSearching ? '搜索结果' : (currentCategory.type_name || '全部视频') }}
+              {{ isSearching ? '搜索结果' : (currentCategory.type_name || parentCategory.type_name || '全部视频') }}
             </span>
             <span class="text-sm font-normal text-gray-500 mt-2">
               共 {{ pagination.total }} 部影片
@@ -336,6 +344,17 @@ watch(curTypeId,
             <span class="flex items-center gap-1 text-sm font-bold text-gray-400 mr-2 flex-shrink-0">
               <Filter class="w-4 h-4" /> 筛选:
             </span>
+
+            <!-- 全部选项 -->
+            <div
+              @click="changeType('')"
+              class="px-4 cursor-pointer py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap border-2"
+              :class="!curTypeId
+                ? 'bg-gradient-to-r from-orange-500 to-red-500 border-orange-400 text-white shadow-lg shadow-orange-500/40'
+                : 'bg-[#1a1b23] border-transparent text-gray-400 hover:text-white hover:bg-[#252730] hover:border-white/10'"
+            >
+              全部
+            </div>
 
             <div
               v-for="cat in categoryList"

@@ -96,7 +96,7 @@ const loadStatsFromStorage = () => {
 const loadStats = async () => {
   isLoading.value = true
   try {
-    const allData = await fetchFromAllSources({ ac: 'detail' }, 30000)
+    const allData = await fetchFromAllSources({ ac: 'detail' }, 1000, 10)
     const videos = allData.list || []
     
     allVideos.value = videos

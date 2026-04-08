@@ -95,8 +95,8 @@ const fetchVideos = async (page = 1) => {
     }
     
     if (useAllSources.value) {
-      // 从所有源获取并整合数据
-      data = await fetchFromAllSources(params, 100)
+      // 从所有源获取并整合数据 - 获取更多页数据
+      data = await fetchFromAllSources(params, 0, 20)
     } else {
       // 从当前选中的源获取
       setCurrentSource(currentSourceIndex.value)
@@ -132,8 +132,8 @@ const searchVideos = async () => {
   try {
     let data
     if (useAllSources.value) {
-      // 从所有源搜索
-      data = await fetchFromAllSources({ ac: 'detail', wd: searchQuery.value.trim() }, 100)
+      // 从所有源搜索 - 获取更多结果
+      data = await fetchFromAllSources({ ac: 'detail', wd: searchQuery.value.trim() }, 0, 10)
     } else {
       // 从当前选中的源搜索
       setCurrentSource(currentSourceIndex.value)

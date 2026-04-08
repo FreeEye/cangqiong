@@ -48,8 +48,8 @@ const loadVideoData = async () => {
   try {
     let data
     if (useAllSources.value) {
-      // 从所有源获取并整合数据
-      data = await fetchFromAllSources({ ac: 'detail' }, 100)
+      // 从所有源获取并整合数据 - 获取更多页数据
+      data = await fetchFromAllSources({ ac: 'detail' }, 0, 20)
     } else {
       // 从当前选中的源获取
       setCurrentSource(currentSourceIndex.value)

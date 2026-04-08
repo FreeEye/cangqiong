@@ -176,7 +176,7 @@ export const fetchFromAllSources = async (params, maxResults = 50, maxPages = 3)
   console.log(`[API] 整合完成: ${uniqueResults.length} 个视频, 错误:`, errors);
   
   return {
-    list: uniqueResults.slice(0, maxResults),
+    list: maxResults > 0 ? uniqueResults.slice(0, maxResults) : uniqueResults,
     total: uniqueResults.length,
     errors: errors.length > 0 ? errors : undefined
   };

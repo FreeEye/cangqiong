@@ -174,7 +174,7 @@ const loadRecommendedVideos = async () => {
   try {
     // 使用所有源获取热门视频（按点击量排序）
     const { fetchFromAllSources } = await import('@/utils/api')
-    const data = await fetchFromAllSources({ ac: 'detail' }, 50)
+    const data = await fetchFromAllSources({ ac: 'detail' }, 0, 5)
     
     if (data && data.list && data.list.length > 0) {
       // 按点击量排序，过滤掉当前视频，取前6个作为推荐
@@ -238,11 +238,17 @@ const parsePlayUrl = (playFrom, playUrl) => {
       }
     }
 
+    // 过滤只保留 m3u8 格式的集数
+    const m3u8Episodes = episodes.filter(ep => {
+      const url = ep.url.toLowerCase()
+      return url.includes('.m3u8') || url.includes('m3u8')
+    })
+
     return {
       name, // 源名称
-      episodes // 该源下的集数列表
+      episodes: m3u8Episodes.length > 0 ? m3u8Episodes : episodes // 如果没有m3u8则保留原数据
     }
-  })
+  }).filter(source => source.episodes.length > 0) // 过滤掉没有集数的源
 
   playSources.value = result
 
@@ -280,10 +286,12 @@ const playEpisode = (url, name, index = -1) => {
   let processedUrl = url
   
   // 检查是否需要代理（某些视频源的 URL 需要代理才能播放）
-  // 只有特定域名才需要代理
   const needsProxy = url.includes('ffzy-plays.com') || 
+                     url.includes('ffzy5.tv') ||
                      url.includes('/share/') ||
-                     (url.includes('ffzy5.tv') && !url.endsWith('.m3u8'))
+                     url.includes('wolongzyw.com') ||
+                     url.includes('wujinapi.me') ||
+                     (url.includes('.m3u8') && !url.startsWith('https://'))
   
   if (needsProxy) {
     // 使用 codetabs 代理
@@ -488,6 +496,26 @@ onUnmounted(() => {
                 {{ currentEpisodesList.length }} 集全
               </span>
             </h3>
+          </div>
+
+          <!-- 上一集/下一集按钮 -->
+          <div v-if="currentEpisodesList.length > 1" class="p-2 border-b border-white/5 flex gap-2">
+            <button
+              @click="playPreviousEpisode"
+              :disabled="currentEpisodeIndex === 0"
+              class="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-purple-600/20 hover:bg-purple-600/30 rounded-lg text-purple-400 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-purple-600/20"
+            >
+              <ChevronLeft class="w-4 h-4" />
+              <span>上一集</span>
+            </button>
+            <button
+              @click="playNextEpisode"
+              :disabled="currentEpisodeIndex === currentEpisodesList.length - 1"
+              class="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-purple-600/20 hover:bg-purple-600/30 rounded-lg text-purple-400 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-purple-600/20"
+            >
+              <span>下一集</span>
+              <ChevronRight class="w-4 h-4" />
+            </button>
           </div>
 
           <!-- 选集列表 (滚动区域) - 移动端优化网格 -->

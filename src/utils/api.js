@@ -112,7 +112,20 @@ const fetchFromSource = async (source, params, timeout = 10000, retryCount = 0) 
 };
 
 // 从所有可用源获取数据并整合
+const cache = new Map();
+const CACHE_TTL = 60 * 60 * 1000; // 缓存1小时
+
 export const fetchFromAllSources = async (params, maxResults = 50, maxPages = 3) => {
+  // 生成缓存键
+  const cacheKey = JSON.stringify({ ...params, maxPages });
+  
+  // 检查缓存
+  const cached = cache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log(`[API] 使用缓存数据: ${cacheKey}`);
+    return cached.data;
+  }
+  
   const results = [];
   const errors = [];
   
@@ -173,13 +186,18 @@ export const fetchFromAllSources = async (params, maxResults = 50, maxPages = 3)
   // 按点击量排序
   uniqueResults.sort((a, b) => (b.vod_hits || 0) - (a.vod_hits || 0));
   
-  console.log(`[API] 整合完成: ${uniqueResults.length} 个视频, 错误:`, errors);
-  
-  return {
+  const responseData = {
     list: maxResults > 0 ? uniqueResults.slice(0, maxResults) : uniqueResults,
     total: uniqueResults.length,
     errors: errors.length > 0 ? errors : undefined
   };
+  
+  // 缓存结果
+  cache.set(cacheKey, { data: responseData, timestamp: Date.now() });
+  
+  console.log(`[API] 整合完成: ${uniqueResults.length} 个视频, 错误:`, errors);
+  
+  return responseData;
 };
 
 // 从当前选中的源获取数据

@@ -15,6 +15,7 @@ const searchQuery = ref('')
 const currentPage = ref(1)
 const pageSize = 20
 const isLoading = ref(false)
+const adBlockEnabled = ref(true)
 
 const adminUser = ref({})
 
@@ -61,6 +62,12 @@ const logout = () => {
   localStorage.removeItem('admin_token')
   localStorage.removeItem('admin_user')
   router.push('/admin/login')
+}
+
+const toggleAdBlock = () => {
+  adBlockEnabled.value = !adBlockEnabled.value
+  localStorage.setItem('adBlockEnabled', adBlockEnabled.value.toString())
+  console.log('广告拦截状态:', adBlockEnabled.value ? '开启' : '关闭')
 }
 
 const loadStatsFromStorage = () => {
@@ -537,6 +544,10 @@ onMounted(() => {
             </div>
             <div class="flex items-center gap-4">
               <span class="text-gray-400 text-sm">共 {{ filteredVideos.length }} 个视频</span>
+              <button @click="toggleAdBlock" class="flex items-center gap-2 px-4 py-2 rounded-xl" :class="adBlockEnabled ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'">
+                <Shield class="w-4 h-4" />
+                {{ adBlockEnabled ? '广告拦截已开启' : '广告拦截已关闭' }}
+              </button>
               <button @click="refreshData" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 transition-colors">
                 <RefreshCw class="w-4 h-4" />
                 刷新列表

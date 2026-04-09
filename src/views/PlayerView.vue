@@ -246,7 +246,7 @@ const parsePlayUrl = (playFrom, playUrl) => {
 
     return {
       name, // 源名称
-      episodes: m3u8Episodes.length > 0 ? m3u8Episodes : episodes // 如果没有m3u8则保留原数据
+      episodes: m3u8Episodes // 只保留m3u8格式的集数
     }
   }).filter(source => source.episodes.length > 0) // 过滤掉没有集数的源
 
@@ -546,8 +546,23 @@ onUnmounted(() => {
       <div class="h-10 w-10 animate-spin rounded-full border-4 border-purple-600 border-t-transparent" />
     </div>
 
+    <!-- 广告提示区域 -->
+    <div class="mt-12 mx-auto max-w-7xl px-3 sm:px-4 lg:px-8">
+      <div class="p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">
+            <X class="w-4 h-4 text-red-400" />
+          </div>
+          <div>
+            <h3 class="font-bold text-white mb-1">⚠️ 重要提示</h3>
+            <p class="text-sm text-red-300">请勿相信视频中的广告内容，所有广告与本站无关。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 评论区域 - 移动端优化 -->
-    <div class="mt-12 lg:mt-16 mx-auto max-w-7xl px-3 sm:px-4 lg:px-8">
+    <div class="mt-8 lg:mt-12 mx-auto max-w-7xl px-3 sm:px-4 lg:px-8">
       <div class="mb-6 flex items-center justify-between">
         <div class="flex items-center gap-2">
           <div class="w-1 h-6 bg-purple-600 rounded-full" />

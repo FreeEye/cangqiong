@@ -45,9 +45,14 @@ defineProps({
     </div>
 
     <div class="space-y-2 px-1">
-      <h3 class="line-clamp-2 text-sm font-black text-white group-hover:text-orange-400 transition-colors leading-tight">
-        {{ video.vod_name }}
-      </h3>
+      <div class="flex items-start gap-2">
+        <h3 class="line-clamp-2 text-sm font-black text-white group-hover:text-orange-400 transition-colors leading-tight flex-1">
+          {{ video.vod_name }}
+        </h3>
+        <span v-if="video._source" class="text-xs font-semibold text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-full">
+          {{ video._source }}
+        </span>
+      </div>
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <span class="text-xs font-semibold text-gray-500">

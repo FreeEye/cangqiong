@@ -456,7 +456,7 @@ onUnmounted(() => {
             <h3 class="text-lg font-bold text-white mb-4">快速导航</h3>
             <ul class="space-y-2 text-sm">
               <li><a href="#/home" class="text-gray-400 hover:text-purple-400 transition-colors">首页</a></li>
-              <li><a href="#/category/1" class="text-gray-400 hover:text-purple-400 transition-colors">全部视频</a></li>
+              <li><a href="#/category/1" class="text-orange-500 hover:text-orange-600 transition-colors">全部视频</a></li>
               <li><a href="#/history" class="text-gray-400 hover:text-purple-400 transition-colors">观看历史</a></li>
               <li><a href="#/search" class="text-gray-400 hover:text-purple-400 transition-colors">搜索</a></li>
             </ul>

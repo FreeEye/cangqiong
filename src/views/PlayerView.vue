@@ -143,10 +143,23 @@ const loadCurrentViews = async () => {
 }
 
 // --- 核心逻辑 1: 获取并解析数据 ---
-const fetchVideoDetail = async () => {
+const fetchVideoDetail = async (retryCount = 0) => {
   try {
     const data = await apiCall({ ac: 'detail', ids: route.params.id })
-    videoDetail.value = data?.list[0] || {}
+    if (data && data.list && data.list.length > 0) {
+      videoDetail.value = data.list[0]
+    } else {
+      // 数据为空，尝试自动切换视频源
+      if (retryCount < videoSources.length - 1) {
+        console.warn(`[Player] 第${retryCount + 1}个视频源未找到数据，尝试切换到下一个视频源`)
+        const nextSourceIndex = (currentSourceIndex.value + 1) % videoSources.length
+        switchVideoSource(nextSourceIndex)
+        setTimeout(() => fetchVideoDetail(retryCount + 1), 1000)
+      } else {
+        console.error('[Player] 所有视频源都未找到数据')
+        alert('当前视频源下没有加载到相关视频，您可通过切换视频源获取相关视频')
+      }
+    }
     
     if (!videoDetail.value.vod_name) {
       console.error('[Player] 获取视频详情失败，数据为空')
@@ -177,11 +190,11 @@ const loadRecommendedVideos = async () => {
     const data = await fetchFromAllSources({ ac: 'detail' }, 0, 5)
     
     if (data && data.list && data.list.length > 0) {
-      // 按点击量排序，过滤掉当前视频，取前6个作为推荐
+      // 按点击量排序，过滤掉当前视频，取前12个作为推荐
       const sortedVideos = data.list
         .filter(video => video.vod_id !== route.params.id && video.vod_id !== videoDetail.value?.vod_id)
         .sort((a, b) => (parseInt(b.vod_hits) || 0) - (parseInt(a.vod_hits) || 0))
-        .slice(0, 6)
+        .slice(0, 12)
       
       recommendedVideos.value = sortedVideos
       console.log('[Player] 加载热门推荐:', sortedVideos.length, '个视频')
@@ -320,6 +333,23 @@ const playEpisode = (url, name, index = -1) => {
   saveWatchHistory()
 }
 
+// --- 核心逻辑 4: 切换播放源并自动加载对应集数 ---
+const switchSource = (index) => {
+  currentSourceIndex.value = index
+  const currentSource = playSources.value[index]
+  if (currentSource && currentSource.episodes.length > 0) {
+    // 查找当前集数名称对应的集数
+    const currentEpisode = currentSource.episodes.find(ep => ep.name === currentEpisodeName.value)
+    if (currentEpisode) {
+      // 如果找到，播放对应集数
+      playEpisode(currentEpisode.url, currentEpisode.name)
+    } else {
+      // 如果没找到，播放第一集
+      playEpisode(currentSource.episodes[0].url, currentSource.episodes[0].name)
+    }
+  }
+}
+
 // 切换到上一集
 const playPreviousEpisode = () => {
   const episodes = currentEpisodesList.value
@@ -443,7 +473,7 @@ onUnmounted(() => {
           <button
             v-for="(source, index) in playSources"
             :key="index"
-            @click="currentSourceIndex = index"
+            @click="switchSource(index)"
             class="px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center gap-2 border"
             :class="currentSourceIndex === index
               ? 'bg-purple-600 border-purple-500 text-white'
@@ -658,9 +688,14 @@ onUnmounted(() => {
           </div>
           
           <!-- 标题 -->
-          <h3 class="text-sm font-medium text-white line-clamp-2 group-hover:text-purple-400 transition-colors">
-            {{ video.vod_name }}
-          </h3>
+          <div class="flex items-start gap-2">
+            <h3 class="text-sm font-medium text-white line-clamp-2 group-hover:text-purple-400 transition-colors flex-1">
+              {{ video.vod_name }}
+            </h3>
+            <span v-if="video._source" class="text-xs font-semibold text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-full">
+              {{ video._source }}
+            </span>
+          </div>
           
           <!-- 信息 -->
           <div class="flex items-center gap-2 text-xs text-gray-400">

@@ -38,7 +38,7 @@ const pagination = ref({
 
 // 视频源相关
 const currentSourceIndex = ref(0)
-const useAllSources = ref(true) // 默认使用所有源
+const useAllSources = ref(false) // 默认使用如意资源
 
 // 搜索相关
 const searchQuery = ref('')
@@ -348,7 +348,7 @@ watch(curTypeId,
             <!-- 全部选项 -->
             <div
               @click="changeType('')"
-              class="px-4 cursor-pointer py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap border-2"
+              class="px-5 cursor-pointer py-3 rounded-xl text-base font-bold transition-all whitespace-nowrap border-2"
               :class="!curTypeId
                 ? 'bg-gradient-to-r from-orange-500 to-red-500 border-orange-400 text-white shadow-lg shadow-orange-500/40'
                 : 'bg-[#1a1b23] border-transparent text-gray-400 hover:text-white hover:bg-[#252730] hover:border-white/10'"
@@ -360,7 +360,7 @@ watch(curTypeId,
               v-for="cat in categoryList"
               :key="cat.type_id"
               @click="changeType(cat.type_id)"
-              class="px-4 cursor-pointer py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap border-2"
+              class="px-5 cursor-pointer py-3 rounded-xl text-base font-bold transition-all whitespace-nowrap border-2"
               :class="curTypeId == cat.type_id
                 ? 'bg-gradient-to-r from-orange-500 to-red-500 border-orange-400 text-white shadow-lg shadow-orange-500/40'
                 : 'bg-[#1a1b23] border-transparent text-gray-400 hover:text-white hover:bg-[#252730] hover:border-white/10'"

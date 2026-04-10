@@ -68,6 +68,7 @@ const initArtplayer = () => {
     playsInline: true,
     autoPlayback: true,
     airplay: true,
+    pip: true, // 画中画功能
     theme: '#9333ea',
     layers: [
       {

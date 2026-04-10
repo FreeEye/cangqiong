@@ -468,8 +468,12 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- 播放源切换 (如果有多个源) -->
-        <div v-if="playSources.length > 1" class="mt-4 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        <!-- 播放源切换 -->
+        <div class="mt-4 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          <div class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-[#1a1b23] border border-white/10 flex items-center gap-2">
+            <Layers class="w-4 h-4" />
+            当前源: {{ playSources[currentSourceIndex]?.name || '无' }}
+          </div>
           <button
             v-for="(source, index) in playSources"
             :key="index"
@@ -477,7 +481,7 @@ onUnmounted(() => {
             class="px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center gap-2 border"
             :class="currentSourceIndex === index
               ? 'bg-purple-600 border-purple-500 text-white'
-              : 'bg-[#1a1b21] border-transparent text-gray-400 hover:text-white hover:bg-[#25262c]'"
+              : 'bg-[#1a1b23] border-transparent text-gray-400 hover:text-white hover:bg-[#25262c]'"
           >
             <Layers class="w-4 h-4" />
             {{ source.name }}

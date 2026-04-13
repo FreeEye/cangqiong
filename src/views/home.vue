@@ -69,7 +69,9 @@ const loadVideoData = async () => {
         const timeB = new Date(a.vod_time || 0).getTime()
         return timeA - timeB
       })
-      newVideoList.value = sortedByTime.slice(0, 20)
+      // 过滤掉热门推荐中已有的视频
+      const uniqueNewVideos = sortedByTime.filter(video => !hotVideoList.value.some(hot => hot.vod_id === video.vod_id))
+      newVideoList.value = uniqueNewVideos.slice(0, 20)
       
       // 轮播展示最新的10个视频
       carouselVideos.value = sortedByTime.slice(0, 10)

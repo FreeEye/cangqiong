@@ -84,6 +84,19 @@ const initArtplayer = () => {
       .artplayer-ad-skip {
         display: none !important;
       }
+      // 屏蔽视频中间的文字广告
+      .video-ad-overlay {
+        display: none !important;
+      }
+      .ad-text {
+        display: none !important;
+      }
+      .watermark-ad {
+        display: none !important;
+      }
+      .video-watermark {
+        display: none !important;
+      }
     `,
     layers: [
       {

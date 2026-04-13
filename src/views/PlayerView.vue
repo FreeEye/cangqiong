@@ -209,9 +209,9 @@ const fetchVideoDetail = async (retryCount = 0) => {
 // 加载热门视频推荐 - 使用真实数据
 const loadRecommendedVideos = async () => {
   try {
-    // 使用所有源获取热门视频（按点击量排序）
-    const { fetchFromAllSources } = await import('@/utils/api')
-    const data = await fetchFromAllSources({ ac: 'detail' }, 0, 5)
+    // 只从当前选中的源获取热门视频
+    const { apiCall } = await import('@/utils/api')
+    const data = await apiCall({ ac: 'detail' })
     
     if (data && data.list && data.list.length > 0) {
       // 按点击量排序，过滤掉当前视频，取前12个作为推荐
@@ -221,7 +221,7 @@ const loadRecommendedVideos = async () => {
         .slice(0, 12)
       
       recommendedVideos.value = sortedVideos
-      console.log('[Player] 加载热门推荐:', sortedVideos.length, '个视频')
+      console.log('[Player] 加载当前源热门推荐:', sortedVideos.length, '个视频')
     }
   } catch (error) {
     console.error('加载推荐视频失败', error)
@@ -422,8 +422,15 @@ const goToVideo = (videoId) => {
     return
   }
   
-  // 使用 window.location.href 直接跳转，确保页面完全刷新
-  window.location.href = `/player/${videoId}`
+  // 使用 router.push 跳转，并强制刷新页面
+  router.push(`/player/${videoId}`).then(() => {
+    window.location.reload()
+  })
+  
+  // 强制刷新页面重新加载数据
+  setTimeout(() => {
+    window.location.reload()
+  }, 100)
 }
 
 // 自动播放下一集

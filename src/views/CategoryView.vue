@@ -280,32 +280,7 @@ watch(curTypeId,
             </span>
           </h1>
           
-          <!-- 搜索框 -->
-          <div class="flex items-center gap-2">
-            <div class="relative">
-              <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                v-model="searchQuery"
-                @keyup.enter="searchVideos"
-                type="text"
-                placeholder="搜索视频..."
-                class="w-full md:w-64 pl-10 pr-10 py-2.5 bg-[#1a1b23] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/20 transition-all"
-              />
-              <button
-                v-if="searchQuery"
-                @click="clearSearch"
-                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-              >
-                <X class="w-4 h-4" />
-              </button>
-            </div>
-            <button
-              @click="searchVideos"
-              class="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl text-white font-medium hover:shadow-lg hover:shadow-orange-500/30 transition-all active:scale-95"
-            >
-              搜索
-            </button>
-          </div>
+
         </div>
 
         <!-- 视频源选择 -->

@@ -92,12 +92,19 @@ const fetchFromSource = async (source, params, timeout = 10000, retryCount = 0) 
       throw new Error(`Invalid data format: list is not an array, got ${typeof data.list}`);
     }
     
-    // 为数据添加来源标记
-    data.list = data.list.map(item => ({
-      ...item,
-      _source: source.name,
-      _sourceIndex: videoSources.indexOf(source)
-    }));
+    // 为数据添加来源标记，并处理卧龙资源的封面问题
+    data.list = data.list.map(item => {
+      // 处理卧龙资源的封面问题
+      if (source.name === '卧龙资源' && (!item.vod_pic || item.vod_pic === '')) {
+        // 使用默认封面或其他替代方案
+        item.vod_pic = `https://picsum.photos/300/450?random=${item.vod_id || Math.random()}`;
+      }
+      return {
+        ...item,
+        _source: source.name,
+        _sourceIndex: videoSources.indexOf(source)
+      };
+    });
     
     return data;
   } catch (error) {

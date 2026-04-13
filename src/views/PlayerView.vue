@@ -344,8 +344,23 @@ const switchSource = (index) => {
       // 如果找到，播放对应集数
       playEpisode(currentEpisode.url, currentEpisode.name)
     } else {
-      // 如果没找到，播放第一集
-      playEpisode(currentSource.episodes[0].url, currentSource.episodes[0].name)
+      // 如果没找到，尝试按集数数字匹配
+      const currentEpisodeNumber = parseInt(currentEpisodeName.value.replace(/[^0-9]/g, ''))
+      if (!isNaN(currentEpisodeNumber)) {
+        const matchedEpisode = currentSource.episodes.find(ep => {
+          const epNumber = parseInt(ep.name.replace(/[^0-9]/g, ''))
+          return epNumber === currentEpisodeNumber
+        })
+        if (matchedEpisode) {
+          playEpisode(matchedEpisode.url, matchedEpisode.name)
+        } else {
+          // 如果还是没找到，播放第一集
+          playEpisode(currentSource.episodes[0].url, currentSource.episodes[0].name)
+        }
+      } else {
+        // 如果无法解析集数，播放第一集
+        playEpisode(currentSource.episodes[0].url, currentSource.episodes[0].name)
+      }
     }
   }
 }
@@ -375,8 +390,10 @@ const goToVideo = (videoId) => {
     return
   }
   
-  // 使用 router.push 跳转，但需要触发页面刷新
-  router.push(`/player/${videoId}`)
+  // 使用 router.push 跳转，并强制刷新页面
+  router.push(`/player/${videoId}`).then(() => {
+    window.location.reload()
+  })
   
   // 强制刷新页面重新加载数据
   setTimeout(() => {

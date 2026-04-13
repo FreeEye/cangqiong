@@ -61,7 +61,7 @@ const loadVideoData = async () => {
       
       // 按点击量排序 - 热门推荐
       const sortedByHits = [...data.list].sort((a, b) => (b.vod_hits || 0) - (a.vod_hits || 0))
-      hotVideoList.value = sortedByHits.slice(0, 10)
+      hotVideoList.value = sortedByHits.slice(0, 20)
       
       // 按时间排序 - 最新更新
       const sortedByTime = [...data.list].sort((a, b) => {
@@ -69,7 +69,7 @@ const loadVideoData = async () => {
         const timeB = new Date(a.vod_time || 0).getTime()
         return timeA - timeB
       })
-      newVideoList.value = sortedByTime.slice(0, 10)
+      newVideoList.value = sortedByTime.slice(0, 20)
       
       // 轮播展示最新的10个视频
       carouselVideos.value = sortedByTime.slice(0, 10)

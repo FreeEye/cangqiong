@@ -1,0 +1,10 @@
+{
+  "build": {
+    "command": "npm run build:cloudflare",
+    "publishDir": "docs"
+  },
+  "env": {
+    "NODE_ENV": "production",
+    "DEPLOY_TARGET": "cloudflare"
+  }
+}

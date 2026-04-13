@@ -6,8 +6,6 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:github": "vite build",
-    "build:cloudflare": "DEPLOY_TARGET=cloudflare vite build",
     "preview": "vite preview"
   },
   "dependencies": {

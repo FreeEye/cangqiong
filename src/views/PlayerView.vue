@@ -173,6 +173,30 @@ const fetchVideoDetail = async (retryCount = 0) => {
     }
     parsePlayUrl(videoDetail.value.vod_play_from, videoDetail.value.vod_play_url)
     
+    // 尝试恢复上次播放进度
+    const cacheKey = `playback_${route.params.id}_*`
+    const cachedItems = Object.keys(localStorage).filter(key => key.startsWith(`playback_${route.params.id}_`))
+    if (cachedItems.length > 0) {
+      // 找到最新的缓存项
+      cachedItems.sort((a, b) => {
+        const cacheA = JSON.parse(localStorage.getItem(a))
+        const cacheB = JSON.parse(localStorage.getItem(b))
+        return cacheB.timestamp - cacheA.timestamp
+      })
+      const latestCache = JSON.parse(localStorage.getItem(cachedItems[0]))
+      if (latestCache) {
+        // 查找对应的集数
+        const episodes = currentEpisodesList.value
+        const foundEpisode = episodes.find(ep => ep.url === latestCache.url || ep.name === latestCache.name)
+        if (foundEpisode) {
+          // 自动播放上次观看的集数
+          setTimeout(() => {
+            playEpisode(foundEpisode.url, foundEpisode.name)
+          }, 1000)
+        }
+      }
+    }
+    
     loadComments()
     
     loadRecommendedVideos()
@@ -307,8 +331,8 @@ const playEpisode = (url, name, index = -1) => {
                      (url.includes('.m3u8') && !url.startsWith('https://'))
   
   if (needsProxy) {
-    // 使用 codetabs 代理
-    processedUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+    // 使用 corsproxy 代理（更稳定的替代方案）
+    processedUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`
     console.log('[Player] 使用代理播放:', processedUrl)
   } else {
     console.log('[Player] 直接播放:', url)
@@ -328,6 +352,14 @@ const playEpisode = (url, name, index = -1) => {
       currentEpisodeIndex.value = foundIndex
     }
   }
+
+  // 缓存播放进度
+  const cacheKey = `playback_${route.params.id}_${name}`
+  localStorage.setItem(cacheKey, JSON.stringify({
+    url: processedUrl,
+    name: name,
+    timestamp: Date.now()
+  }))
 
   // 切换集数时保存观看历史
   saveWatchHistory()
@@ -390,15 +422,8 @@ const goToVideo = (videoId) => {
     return
   }
   
-  // 使用 router.push 跳转，并强制刷新页面
-  router.push(`/player/${videoId}`).then(() => {
-    window.location.reload()
-  })
-  
-  // 强制刷新页面重新加载数据
-  setTimeout(() => {
-    window.location.reload()
-  }, 100)
+  // 使用 window.location.href 直接跳转，确保页面完全刷新
+  window.location.href = `/player/${videoId}`
 }
 
 // 自动播放下一集

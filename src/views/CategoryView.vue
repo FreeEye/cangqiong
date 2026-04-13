@@ -45,8 +45,24 @@ const searchQuery = ref('')
 const isSearching = ref(false)
 const searchResults = ref([])
 
+// 筛选相关
+const filterYear = ref('') // 时间筛选
+const filterCountry = ref('') // 国家/语言筛选
+
 // --- 滚动位置缓存 ---
 const scrollPosition = ref(0) // 保存滚动位置
+
+// 时间筛选
+const filterByYear = (year) => {
+  filterYear.value = filterYear.value === year ? '' : year
+  fetchVideos()
+}
+
+// 国家/语言筛选
+const filterByCountry = (country) => {
+  filterCountry.value = filterCountry.value === country ? '' : country
+  fetchVideos()
+}
 
 // 初始化设置
 const initSettings = () => {
@@ -345,6 +361,41 @@ watch(curTypeId,
           </div>
           <!-- 渐变遮罩提示可滚动 -->
           <div class="absolute right-0 top-0 bottom-4 w-12 bg-gradient-to-l from-[#0f1014] to-transparent pointer-events-none md:hidden" />
+        </div>
+      </div>
+
+      <!-- 时间和国家语言筛选 -->
+      <div class="mt-6">
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex items-center gap-2 text-gray-400 mr-2">
+            <Calendar class="w-4 h-4" />
+            <span class="text-sm font-medium">时间:</span>
+          </div>
+          <div
+            v-for="year in ['2025', '2024', '2023', '2022', '2021', '2020', '更早']"
+            :key="year"
+            @click="filterByYear(year)"
+            class="px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap"
+            :class="filterYear === year ? 'bg-purple-600 text-white' : 'bg-[#1a1b23] text-gray-400 hover:text-white hover:bg-[#252730]'"
+          >
+            {{ year }}
+          </div>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-3 mt-4">
+          <div class="flex items-center gap-2 text-gray-400 mr-2">
+            <Globe class="w-4 h-4" />
+            <span class="text-sm font-medium">国家/语言:</span>
+          </div>
+          <div
+            v-for="country in ['中国大陆', '中国香港', '中国台湾', '日本', '韩国', '美国', '英国', '其他']"
+            :key="country"
+            @click="filterByCountry(country)"
+            class="px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap"
+            :class="filterCountry === country ? 'bg-purple-600 text-white' : 'bg-[#1a1b23] text-gray-400 hover:text-white hover:bg-[#252730]'"
+          >
+            {{ country }}
+          </div>
         </div>
       </div>
 

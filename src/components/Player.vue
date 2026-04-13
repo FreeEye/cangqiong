@@ -70,6 +70,21 @@ const initArtplayer = () => {
     airplay: true,
     pip: true, // 画中画功能
     theme: '#9333ea',
+    // 屏蔽广告相关设置
+    ads: false,
+    danmaku: false,
+    // 自定义CSS屏蔽广告
+    customStyle: `
+      .artplayer-ad {
+        display: none !important;
+      }
+      .artplayer-ad-container {
+        display: none !important;
+      }
+      .artplayer-ad-skip {
+        display: none !important;
+      }
+    `,
     layers: [
       {
         name: 'rewind-btn',

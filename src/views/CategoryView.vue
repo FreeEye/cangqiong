@@ -120,7 +120,7 @@ const fetchVideos = async (page = 1) => {
     videoList.value = data.list || []
 
     // 如果当前分类没有数据，尝试从其他源获取
-    if (videoList.value.length === 0 && !useAllSources.value) {
+    if (videoList.value.length === 0) {
       try {
         // 尝试从所有源获取
         const allData = await fetchFromAllSources(params, 0, 20)
@@ -130,6 +130,7 @@ const fetchVideos = async (page = 1) => {
           pagecount: Math.ceil((allData.total || allData.list?.length || 0) / 20) || 1,
           total: allData.total || allData.list?.length || 0
         }
+        console.log('[Category] 从所有源获取到数据:', videoList.value.length, '个视频')
       } catch (e) {
         console.error('从所有源获取视频列表失败', e)
       }

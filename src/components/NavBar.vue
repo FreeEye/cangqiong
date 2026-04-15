@@ -21,11 +21,19 @@ const fetchCategories = async () => {
     const diyName = ['电影解说', '体育']
     const filterData = cData.filter(item => !diyName.includes(item.type_name)) || []
     console.log('data', filterData)
+    // 增加更多分类标签
+    const additionalCategories = [
+      { name: '纪录片', path: '/category/100', key: '100' },
+      { name: '综艺', path: '/category/101', key: '101' },
+      { name: '动漫', path: '/category/102', key: '102' },
+      { name: '短剧', path: '/category/103', key: '103' },
+      { name: '海外剧', path: '/category/104', key: '104' }
+    ]
     project.menuList = [{ name: '首页', path: '/home' }, ...filterData.map(item => ({
       name: item.type_name,
       path: `/category/${item.type_id}`,
       key: item.type_id
-    }))]
+    })), ...additionalCategories]
   } catch (e) {
     console.error('获取分类失败', e)
   }

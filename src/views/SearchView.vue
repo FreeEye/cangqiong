@@ -87,6 +87,17 @@ const doSearch = async (keyword) => {
     list.value = data.list || []
     total.value = data.total || 0
 
+    // 如果当前源搜索结果为空，尝试从所有源搜索
+    if (list.value.length === 0) {
+      try {
+        const allData = await fetchFromAllSources({ ac: 'detail', wd: keyword }, 0, 20)
+        list.value = allData.list || []
+        total.value = allData.total || allData.list?.length || 0
+      } catch (e) {
+        console.error('从所有源搜索失败', e)
+      }
+    }
+
     // 添加到搜索历史
     addToHistory(keyword)
   } catch (e) {

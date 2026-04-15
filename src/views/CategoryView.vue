@@ -119,11 +119,27 @@ const fetchVideos = async (page = 1) => {
 
     videoList.value = data.list || []
 
-    // 更新分页信息
-    pagination.value = {
-      page: page,
-      pagecount: Math.ceil((data.total || data.list?.length || 0) / 20) || 1,
-      total: data.total || data.list?.length || 0
+    // 如果当前分类没有数据，尝试从其他源获取
+    if (videoList.value.length === 0 && !useAllSources.value) {
+      try {
+        // 尝试从所有源获取
+        const allData = await fetchFromAllSources(params, 0, 20)
+        videoList.value = allData.list || []
+        pagination.value = {
+          page: page,
+          pagecount: Math.ceil((allData.total || allData.list?.length || 0) / 20) || 1,
+          total: allData.total || allData.list?.length || 0
+        }
+      } catch (e) {
+        console.error('从所有源获取视频列表失败', e)
+      }
+    } else {
+      // 更新分页信息
+      pagination.value = {
+        page: page,
+        pagecount: Math.ceil((data.total || data.list?.length || 0) / 20) || 1,
+        total: data.total || data.list?.length || 0
+      }
     }
   } catch (e) {
     console.error('获取视频列表失败', e)

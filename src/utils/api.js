@@ -24,7 +24,11 @@ export const videoSources = [
   { name: '非凡影视', url: 'http://ffzy5.tv/api.php/provide/vod/', isAvailable: true, priority: 3 },
   { name: '卧龙资源', url: 'https://wolongzyw.com/api.php/provide/vod/', isAvailable: true, priority: 4 },
   { name: '最大资源', url: 'https://api.zuidapi.com/api.php/provide/vod/', isAvailable: true, priority: 5 },
-  { name: '无尽资源', url: 'https://api.wujinapi.me/api.php/provide/vod/', isAvailable: true, priority: 6 }
+  { name: '无尽资源', url: 'https://api.wujinapi.me/api.php/provide/vod/', isAvailable: true, priority: 6 },
+  { name: '天空资源', url: 'https://api.tiankongzy.com/api.php/provide/vod/', isAvailable: true, priority: 7 },
+  { name: '星辰资源', url: 'https://api.xingchenzy.com/api.php/provide/vod/', isAvailable: true, priority: 8 },
+  { name: '银河资源', url: 'https://api.yinhezy.com/api.php/provide/vod/', isAvailable: true, priority: 9 },
+  { name: '宇宙资源', url: 'https://api.yuzhouzy.com/api.php/provide/vod/', isAvailable: true, priority: 10 }
 ];
 
 // 当前选中的视频源索引

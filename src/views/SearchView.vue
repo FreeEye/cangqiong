@@ -87,6 +87,32 @@ const doSearch = async (keyword) => {
     list.value = data.list || []
     total.value = data.total || 0
 
+    // 综合搜索：支持按演员名称、作品、时间、语言类型等标签搜索
+    if (list.value.length === 0) {
+      try {
+        // 尝试不同的搜索参数
+        const searchParams = [
+          { ac: 'detail', wd: keyword },
+          { ac: 'detail', actor: keyword },
+          { ac: 'detail', director: keyword },
+          { ac: 'detail', year: keyword },
+          { ac: 'detail', language: keyword }
+        ]
+        
+        // 尝试所有搜索参数
+        for (const param of searchParams) {
+          const searchData = await apiCall(param)
+          if (searchData.list && searchData.list.length > 0) {
+            list.value = searchData.list
+            total.value = searchData.total || searchData.list.length
+            break
+          }
+        }
+      } catch (e) {
+        console.error('综合搜索失败', e)
+      }
+    }
+
     // 如果当前源搜索结果为空，尝试从所有源搜索
     if (list.value.length === 0) {
       try {

@@ -94,19 +94,7 @@ const fetchVideos = async (page = 1) => {
       params.t = curTypeId.value
     }
     
-    // 应用时间筛选
-    if (filterYear.value) {
-      if (filterYear.value === '更早') {
-        params.year = '2020'
-      } else {
-        params.year = filterYear.value
-      }
-    }
-    
-    // 应用国家/语言筛选
-    if (filterCountry.value) {
-      params.country = filterCountry.value
-    }
+
     
     if (useAllSources.value) {
       // 从所有源获取并整合数据 - 获取更多页数据
@@ -114,7 +102,13 @@ const fetchVideos = async (page = 1) => {
     } else {
       // 从当前选中的源获取
       setCurrentSource(currentSourceIndex.value)
-      data = await apiCall(params)
+      try {
+        data = await apiCall(params)
+      } catch (e) {
+        console.error('从当前源获取数据失败，尝试从所有源获取:', e)
+        // 如果当前源获取失败，尝试从所有源获取
+        data = await fetchFromAllSources(params, 0, 20)
+      }
     }
 
     videoList.value = data.list || []

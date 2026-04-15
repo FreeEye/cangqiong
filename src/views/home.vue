@@ -120,23 +120,23 @@ const loadVideoData = async () => {
       animeList.value.forEach(v => usedIds.add(v.vod_id))
       varietyList.value.forEach(v => usedIds.add(v.vod_id))
       
-      if (movieList.value.length < 20) {
-        const additional = sortedByHits.filter(v => !usedIds.has(v.vod_id)).slice(0, 20 - movieList.value.length)
+      if (movieList.value.length < 30) {
+        const additional = sortedByHits.filter(v => !usedIds.has(v.vod_id)).slice(0, 30 - movieList.value.length)
         additional.forEach(v => usedIds.add(v.vod_id))
         movieList.value = [...movieList.value, ...additional]
       }
-      if (tvList.value.length < 20) {
-        const additional = sortedByHits.filter(v => !usedIds.has(v.vod_id)).slice(0, 20 - tvList.value.length)
+      if (tvList.value.length < 30) {
+        const additional = sortedByHits.filter(v => !usedIds.has(v.vod_id)).slice(0, 30 - tvList.value.length)
         additional.forEach(v => usedIds.add(v.vod_id))
         tvList.value = [...tvList.value, ...additional]
       }
-      if (animeList.value.length < 20) {
-        const additional = sortedByHits.filter(v => !usedIds.has(v.vod_id)).slice(0, 20 - animeList.value.length)
+      if (animeList.value.length < 30) {
+        const additional = sortedByHits.filter(v => !usedIds.has(v.vod_id)).slice(0, 30 - animeList.value.length)
         additional.forEach(v => usedIds.add(v.vod_id))
         animeList.value = [...animeList.value, ...additional]
       }
-      if (varietyList.value.length < 20) {
-        const additional = sortedByHits.filter(v => !usedIds.has(v.vod_id)).slice(0, 20 - varietyList.value.length)
+      if (varietyList.value.length < 30) {
+        const additional = sortedByHits.filter(v => !usedIds.has(v.vod_id)).slice(0, 30 - varietyList.value.length)
         varietyList.value = [...varietyList.value, ...additional]
       }
     }

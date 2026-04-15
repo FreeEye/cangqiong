@@ -97,6 +97,19 @@ const initArtplayer = () => {
       .video-watermark {
         display: none !important;
       }
+      // 屏蔽澳门新葡京广告
+      .new-macau-ad {
+        display: none !important;
+      }
+      .macau-watermark {
+        display: none !important;
+      }
+      .ad-overlay {
+        display: none !important;
+      }
+      .watermark {
+        display: none !important;
+      }
     `,
     layers: [
       {

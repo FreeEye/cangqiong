@@ -103,10 +103,20 @@ const loadStatsFromStorage = () => {
 const loadStats = async () => {
   isLoading.value = true
   try {
-    const allData = await fetchFromAllSources({ ac: 'detail' }, 0, 20)
-    const videos = allData.list || []
-    
-    allVideos.value = videos
+    // 尝试从本地缓存获取数据
+    const cachedVideos = localStorage.getItem('adminVideoList')
+    if (cachedVideos) {
+      allVideos.value = JSON.parse(cachedVideos)
+      console.log('[Admin] 使用本地缓存视频数据')
+    } else {
+      // 从API获取更多视频
+      const allData = await fetchFromAllSources({ ac: 'detail' }, 0, 50)
+      const videos = allData.list || []
+      allVideos.value = videos
+      // 缓存到本地
+      localStorage.setItem('adminVideoList', JSON.stringify(videos))
+      console.log('[Admin] 从API获取并缓存视频数据')
+    }
     
     const totalViews = videos.reduce((sum, v) => sum + (parseInt(v.vod_hits) || 0), 0)
     

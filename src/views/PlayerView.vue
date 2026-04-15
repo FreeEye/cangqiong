@@ -157,7 +157,7 @@ const fetchVideoDetail = async (retryCount = 0) => {
         setTimeout(() => fetchVideoDetail(retryCount + 1), 1000)
       } else {
         console.error('[Player] 所有视频源都未找到数据')
-        alert('当前视频源下没有加载到相关视频，您可通过切换视频源获取相关视频')
+        alert('当前视频源无法获取视频，请切换其它源试下')
       }
     }
     
@@ -522,6 +522,10 @@ onUnmounted(() => {
           <div class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-[#1a1b23] border border-white/10 flex items-center gap-2">
             <Layers class="w-4 h-4" />
             当前源: {{ playSources[currentSourceIndex]?.name || '无' }}
+            <span class="ml-auto flex items-center gap-1">
+              <Flame class="w-3.5 h-3.5 text-orange-500" />
+              {{ currentViews.toLocaleString() }} 人正在看
+            </span>
           </div>
           <button
             v-for="(source, index) in playSources"

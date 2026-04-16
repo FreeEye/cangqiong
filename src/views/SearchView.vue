@@ -87,6 +87,20 @@ const doSearch = async (keyword) => {
     list.value = data.list || []
     total.value = data.total || 0
 
+    // 过滤搜索结果，确保与搜索内容相关
+    if (list.value.length > 0) {
+      list.value = list.value.filter(item => {
+        // 检查标题、演员、导演等字段是否包含关键词
+        const titleMatch = item.vod_name && item.vod_name.toLowerCase().includes(keyword.toLowerCase())
+        const actorMatch = item.vod_actor && item.vod_actor.toLowerCase().includes(keyword.toLowerCase())
+        const directorMatch = item.vod_director && item.vod_director.toLowerCase().includes(keyword.toLowerCase())
+        const typeMatch = item.vod_type && item.vod_type.toLowerCase().includes(keyword.toLowerCase())
+        return titleMatch || actorMatch || directorMatch || typeMatch
+      })
+      total.value = list.value.length
+      console.log('[Search] 过滤后搜索结果:', list.value.length, '个视频')
+    }
+
     // 综合搜索：支持按演员名称、作品、时间、语言类型等标签搜索
     if (list.value.length === 0) {
       try {

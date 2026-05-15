@@ -118,32 +118,20 @@ const loadStats = async () => {
       console.log('[Admin] 从API获取并缓存视频数据')
     }
     
-    const totalViews = videos.reduce((sum, v) => sum + (parseInt(v.vod_hits) || 0), 0)
+    const totalViews = allVideos.value.reduce((sum, v) => sum + (parseInt(v.vod_hits) || 0), 0)
     
     const storageStats = loadStatsFromStorage()
     
     stats.value = {
-      totalVideos: videos.length,
-      totalViews: totalViews,
-      totalComments: storageStats.commentsCount,
-      onlineUsers: storageStats.liveViewers || Math.floor(Math.random() * 50) + 10,
-      todayViews: storageStats.todayViews || Math.floor(Math.random() * 100) + 20,
-      weekViews: storageStats.weekViews || Math.floor(Math.random() * 500) + 100
-    }
+        totalVideos: allVideos.value.length,
+        totalViews: totalViews,
+        totalComments: storageStats.commentsCount,
+        onlineUsers: storageStats.liveViewers || Math.floor(Math.random() * 50) + 10,
+        todayViews: storageStats.todayViews || Math.floor(Math.random() * 100) + 20,
+        weekViews: storageStats.weekViews || Math.floor(Math.random() * 500) + 100
+      }
     
-    videoList.value = videos.map((v, index) => ({
-      id: v.vod_id || index,
-      title: v.vod_name,
-      type: v.vod_type_name || v.type_name || '未知',
-      source: v._source || '未知',
-      views: parseInt(v.vod_hits) || 0,
-      duration: v.vod_duration || '未知',
-      status: 'published',
-      updateTime: v.vod_time ? new Date(v.vod_time * 1000).toLocaleDateString('zh-CN') : '未知',
-      pic: v.vod_pic,
-      vod_play_url: v.vod_play_url || '',
-      vod_blurb: v.vod_blurb || v.vod_content || ''
-    }))
+    videoList.value = allVideos.value.map((v, index) => ({        id: v.vod_id || index,        title: v.vod_name,        type: v.vod_type_name || v.type_name || '未知',        source: v._source || '未知',        views: parseInt(v.vod_hits) || 0,        duration: v.vod_duration || '未知',        status: 'published',        updateTime: v.vod_time ? new Date(v.vod_time * 1000).toLocaleDateString('zh-CN') : '未知',        pic: v.vod_pic,        vod_play_url: v.vod_play_url || '',        vod_blurb: v.vod_blurb || v.vod_content || ''      }))
     
     const sourceMap = {}
     videoSources.forEach(s => {

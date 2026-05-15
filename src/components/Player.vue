@@ -156,11 +156,27 @@ const initArtplayer = () => {
       m3u8: function (video, url, art) {
         if (Hls.isSupported()) {
           if (art.hls) art.hls.destroy()
-          const hls = new Hls()
+          const hls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: true,
+            maxBufferLength: 30,
+            maxMaxBufferLength: 60,
+            minAutoBitrate: 0,
+            maxAutoBitrate: 100000000,
+            startLevel: -1,
+            enableSoftwareAES: true
+          })
           hls.loadSource(url)
           hls.attachMedia(video)
           art.hls = hls
           art.on('destroy', () => hls.destroy())
+          // 自动切换到最佳画质
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            const bestLevel = hls.levels.reduce((best, level) => {
+              return level.bitrate > best.bitrate ? level : best
+            }, hls.levels[0])
+            hls.currentLevel = hls.levels.indexOf(bestLevel)
+          })
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
           video.src = url
         } else {

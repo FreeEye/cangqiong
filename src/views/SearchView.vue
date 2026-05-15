@@ -95,7 +95,9 @@ const doSearch = async (keyword) => {
         const actorMatch = item.vod_actor && item.vod_actor.toLowerCase().includes(keyword.toLowerCase())
         const directorMatch = item.vod_director && item.vod_director.toLowerCase().includes(keyword.toLowerCase())
         const typeMatch = item.vod_type && item.vod_type.toLowerCase().includes(keyword.toLowerCase())
-        return titleMatch || actorMatch || directorMatch || typeMatch
+        const contentMatch = item.vod_content && item.vod_content.toLowerCase().includes(keyword.toLowerCase())
+        const blurbMatch = item.vod_blurb && item.vod_blurb.toLowerCase().includes(keyword.toLowerCase())
+        return titleMatch || actorMatch || directorMatch || typeMatch || contentMatch || blurbMatch
       })
       total.value = list.value.length
       console.log('[Search] 过滤后搜索结果:', list.value.length, '个视频')

@@ -2,12 +2,14 @@
 import { onMounted, ref, onUnmounted, computed } from 'vue'
 import NavBar from '@/components/NavBar.vue'
 import VideoCard from '@/components/VideoCard.vue'
-import { 
-  PlayCircle, Calendar, MapPin, Layers, Eye, Star, TrendingUp, 
+import AdBanner from '@/components/AdBanner.vue'
+import {
+  PlayCircle, Calendar, MapPin, Layers, Eye, Star, TrendingUp,
   Flame, Clock, Zap, ChevronLeft, ChevronRight, Database, Film, Tv, Sparkles
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { apiCall, videoSources, setCurrentSource, initSourceSetting, fetchFromAllSources } from '@/utils/api'
+import { getAdSettings } from '@/utils/ads'
 
 const router = useRouter()
 
@@ -57,14 +59,22 @@ const loadVideoData = async () => {
     }
 
     if (data.list && data.list.length > 0) {
-      allVideos.value = data.list
-      
+      // 广告过滤：排除被后台标记的视频
+      const adBlockEnabled = localStorage.getItem('adBlockEnabled') !== 'false'
+      let filteredList = data.list
+      if (adBlockEnabled) {
+        const blockedIds = JSON.parse(localStorage.getItem('blockedVideos') || '[]')
+        const blockedSet = new Set(blockedIds)
+        filteredList = data.list.filter(v => !blockedSet.has(String(v.vod_id)))
+      }
+      allVideos.value = filteredList
+
       // 按点击量排序 - 热门推荐
-      const sortedByHits = [...data.list].sort((a, b) => (b.vod_hits || 0) - (a.vod_hits || 0))
+      const sortedByHits = [...filteredList].sort((a, b) => (b.vod_hits || 0) - (a.vod_hits || 0))
       hotVideoList.value = sortedByHits.slice(0, 20)
       
       // 按时间排序 - 最新更新
-      const sortedByTime = [...data.list].sort((a, b) => {
+      const sortedByTime = [...filteredList].sort((a, b) => {
         const timeA = new Date(b.vod_time || 0).getTime()
         const timeB = new Date(a.vod_time || 0).getTime()
         return timeA - timeB
@@ -72,42 +82,41 @@ const loadVideoData = async () => {
       // 过滤掉热门推荐中已有的视频
       const uniqueNewVideos = sortedByTime.filter(video => !hotVideoList.value.some(hot => hot.vod_id === video.vod_id))
       newVideoList.value = uniqueNewVideos.slice(0, 20)
-      
+
       // 轮播展示最新的10个视频
       carouselVideos.value = sortedByTime.slice(0, 10)
-      
+
       // 分类数据 - 基于实际API返回的type_name进行精确匹配
-      // 首先分析所有数据的type_name分布
       const typeNameMap = {}
-      data.list.forEach(v => {
+      filteredList.forEach(v => {
         const typeName = v.vod_type_name || v.type_name || '其他'
         typeNameMap[typeName] = (typeNameMap[typeName] || 0) + 1
       })
       console.log('[Home] Type名称分布:', typeNameMap)
 
-      // 电影：type_name包含"电影"、"动作片"、"喜剧片"、"爱情片"、"科幻片"等
-      movieList.value = data.list.filter(v => {
+      // 电影
+      movieList.value = filteredList.filter(v => {
         const typeName = (v.vod_type_name || v.type_name || '').toLowerCase()
         const movieKeywords = ['电影', '动作片', '喜剧片', '爱情片', '科幻片', '恐怖片', '剧情片', '战争片', '纪录片', '悬疑片', '动画片', '犯罪片', '奇幻片', '冒险片']
         return movieKeywords.some(keyword => typeName.includes(keyword))
       }).slice(0, 10)
 
-      // 电视剧：type_name包含"电视剧"、"国产剧"、"美剧"、"韩剧"、"日剧"、"港剧"、"台剧"、"泰剧"、"海外剧"等
-      tvList.value = data.list.filter(v => {
+      // 电视剧
+      tvList.value = filteredList.filter(v => {
         const typeName = (v.vod_type_name || v.type_name || '').toLowerCase()
         const tvKeywords = ['电视剧', '国产剧', '美剧', '韩剧', '日剧', '港剧', '台剧', '泰剧', '海外剧', '英剧']
         return tvKeywords.some(keyword => typeName.includes(keyword))
       }).slice(0, 10)
 
-      // 动漫：type_name包含"动漫"、"动画"、"番剧"、"国产动漫"、"日本动漫"、"欧美动漫"等
-      animeList.value = data.list.filter(v => {
+      // 动漫
+      animeList.value = filteredList.filter(v => {
         const typeName = (v.vod_type_name || v.type_name || '').toLowerCase()
         const animeKeywords = ['动漫', '动画', '番剧', '国产动漫', '日本动漫', '欧美动漫']
         return animeKeywords.some(keyword => typeName.includes(keyword))
       }).slice(0, 10)
 
-      // 综艺：type_name包含"综艺"、"真人秀"、"脱口秀"等
-      varietyList.value = data.list.filter(v => {
+      // 综艺
+      varietyList.value = filteredList.filter(v => {
         const typeName = (v.vod_type_name || v.type_name || '').toLowerCase()
         const varietyKeywords = ['综艺', '真人秀', '脱口秀']
         return varietyKeywords.some(keyword => typeName.includes(keyword))
@@ -162,6 +171,27 @@ const useAllVideoSources = () => {
   localStorage.setItem('useAllSources', 'true')
   loadVideoData()
 }
+
+// 广告: 在视频列表中插入广告位
+const adSettings = computed(() => getAdSettings())
+const withAds = (list, adSlotId) => {
+  if (!adSettings.value.enabled) return list.map(v => ({ type: 'video', data: v }))
+  const interval = adSettings.value.feedInterval || 8
+  const result = []
+  list.forEach((v, i) => {
+    result.push({ type: 'video', data: v })
+    if ((i + 1) % interval === 0 && i < list.length - 1) {
+      result.push({ type: 'ad', slotId: adSlotId })
+    }
+  })
+  return result
+}
+const hotWithAds = computed(() => withAds(hotVideoList.value, 'home-feed-1'))
+const newWithAds = computed(() => withAds(newVideoList.value, 'home-feed-2'))
+const movieWithAds = computed(() => withAds(movieList.value, 'home-feed-1'))
+const tvWithAds = computed(() => withAds(tvList.value, 'home-feed-2'))
+const animeWithAds = computed(() => withAds(animeList.value, 'home-feed-1'))
+const varietyWithAds = computed(() => withAds(varietyList.value, 'home-feed-2'))
 
 // 轮播控制
 const nextCarousel = () => {
@@ -359,7 +389,10 @@ onUnmounted(() => {
           </button>
         </div>
         <div class="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          <VideoCard v-for="video in hotVideoList" :key="video.vod_id" :video="video" @click="goToDetail(video.vod_id)" />
+          <template v-for="(item, idx) in hotWithAds" :key="idx">
+            <VideoCard v-if="item.type === 'video'" :video="item.data" @click="goToDetail(item.data.vod_id)" />
+            <AdBanner v-else :slot-id="'home-feed-1'" type="native" />
+          </template>
         </div>
       </section>
 
@@ -375,8 +408,10 @@ onUnmounted(() => {
           </div>
         </div>
         <div class="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          <VideoCard v-for="video in newVideoList" :key="video.vod_id" :video="video" @click="goToDetail(video.vod_id)" />
-        </div>
+          <template v-for="(item, idx) in newWithAds" :key="idx">
+            <VideoCard v-if="item.type === 'video'" :video="item.data" @click="goToDetail(item.data.vod_id)" />
+            <AdBanner v-else :slot-id="'home-feed-2'" type="native" />
+          </template>
       </section>
 
       <!-- 电影 -->
@@ -391,7 +426,10 @@ onUnmounted(() => {
           </div>
         </div>
         <div class="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          <VideoCard v-for="video in movieList" :key="video.vod_id" :video="video" @click="goToDetail(video.vod_id)" />
+          <template v-for="(item, idx) in movieWithAds" :key="idx">
+            <VideoCard v-if="item.type === 'video'" :video="item.data" @click="goToDetail(item.data.vod_id)" />
+            <AdBanner v-else :slot-id="'home-feed-1'" type="native" />
+          </template>
         </div>
       </section>
 
@@ -407,7 +445,10 @@ onUnmounted(() => {
           </div>
         </div>
         <div class="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          <VideoCard v-for="video in tvList" :key="video.vod_id" :video="video" @click="goToDetail(video.vod_id)" />
+          <template v-for="(item, idx) in tvWithAds" :key="idx">
+            <VideoCard v-if="item.type === 'video'" :video="item.data" @click="goToDetail(item.data.vod_id)" />
+            <AdBanner v-else :slot-id="'home-feed-2'" type="native" />
+          </template>
         </div>
       </section>
 
@@ -423,7 +464,10 @@ onUnmounted(() => {
           </div>
         </div>
         <div class="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          <VideoCard v-for="video in animeList" :key="video.vod_id" :video="video" @click="goToDetail(video.vod_id)" />
+          <template v-for="(item, idx) in animeWithAds" :key="idx">
+            <VideoCard v-if="item.type === 'video'" :video="item.data" @click="goToDetail(item.data.vod_id)" />
+            <AdBanner v-else :slot-id="'home-feed-1'" type="native" />
+          </template>
         </div>
       </section>
 
@@ -439,8 +483,10 @@ onUnmounted(() => {
           </div>
         </div>
         <div class="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          <VideoCard v-for="video in varietyList" :key="video.vod_id" :video="video" @click="goToDetail(video.vod_id)" />
-        </div>
+          <template v-for="(item, idx) in varietyWithAds" :key="idx">
+            <VideoCard v-if="item.type === 'video'" :video="item.data" @click="goToDetail(item.data.vod_id)" />
+            <AdBanner v-else :slot-id="'home-feed-2'" type="native" />
+          </template>
       </section>
     </main>
 

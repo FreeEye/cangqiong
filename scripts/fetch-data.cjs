@@ -10,6 +10,7 @@ const path = require('path')
 const VIDEO_SOURCES = [
   { name: '如意资源', url: 'https://cj.rycjapi.com/api.php/provide/vod/' },
   { name: '极速资源', url: 'https://jszyapi.com/api.php/provide/vod/' },
+  { name: '卧龙资源', url: 'https://wolongzyw.com/api.php/provide/vod/' },
   { name: '最大资源', url: 'https://api.zuidapi.com/api.php/provide/vod/' },
   { name: '无尽资源', url: 'https://api.wujinapi.me/api.php/provide/vod/' }
 ]
@@ -123,18 +124,29 @@ async function main () {
 
   const results = []
 
-  // 1. 拉取各源的详情数据
-  console.log('\n🔍 拉取详情数据 (ac=detail):')
+  // 1. 拉取各源的详情数据（每个源拉取 5 页）
+  console.log('\n🔍 拉取详情数据 (ac=detail, pg=1~5):')
   for (const source of VIDEO_SOURCES) {
-    process.stdout.write(`  ↗️  ${source.name}...`)
-    const result = await fetchFromSource(source, { ac: 'detail', pg: 1 })
-    if (result.success) {
-      const count = Array.isArray(result.data.list) ? result.data.list.length : 0
-      console.log(` ✅ 获取 ${count} 条`)
-    } else {
-      console.log(` ❌ 失败: ${result.error}`)
+    process.stdout.write(`  ↗️  ${source.name}`)
+    let totalForSource = 0
+    let sourceResults = []
+    for (let page = 1; page <= 5; page++) {
+      process.stdout.write(` pg${page}`)
+      const pageResult = await fetchFromSource(source, { ac: 'detail', pg: page })
+      if (pageResult.success) {
+        const list = Array.isArray(pageResult.data.list) ? pageResult.data.list : []
+        totalForSource += list.length
+        if (list.length > 0) {
+          sourceResults.push(pageResult)
+        }
+        if (list.length < 20) break // 没有更多数据了
+      } else {
+        process.stdout.write('(失败)')
+        break
+      }
     }
-    results.push(result)
+    console.log(` ✅ 共 ${totalForSource} 条`)
+    results.push(...sourceResults)
   }
 
   // 2. 合并数据

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { apiCall } from '@/utils/api'
+import { searchVideos } from '@/utils/api'
 import NavBar from '@/components/NavBar.vue'
 import VideoCard from '@/components/VideoCard.vue'
 import { Search, Frown, Sparkles, ChevronRight, Clock, X } from 'lucide-vue-next'
@@ -75,76 +75,22 @@ const searchFromHistory = (keyword) => {
 
 // 核心搜索逻辑
 const doSearch = async (keyword) => {
-  if (!keyword) return
+  if (!keyword || !keyword.trim()) return
 
   loading.value = true
-  localKeyword.value = keyword // 同步输入框文字
+  localKeyword.value = keyword.trim()
 
   try {
-    // 接口参数：ac=detail & wd=关键词
-    const data = await apiCall({ ac: 'detail', wd: keyword })
-
+    const data = await searchVideos(keyword.trim())
     list.value = data.list || []
-    total.value = data.total || 0
-
-    // 过滤搜索结果，确保与搜索内容相关
-    if (list.value.length > 0) {
-      list.value = list.value.filter(item => {
-        // 检查标题、演员、导演等字段是否包含关键词
-        const titleMatch = item.vod_name && item.vod_name.toLowerCase().includes(keyword.toLowerCase())
-        const actorMatch = item.vod_actor && item.vod_actor.toLowerCase().includes(keyword.toLowerCase())
-        const directorMatch = item.vod_director && item.vod_director.toLowerCase().includes(keyword.toLowerCase())
-        const typeMatch = item.vod_type && item.vod_type.toLowerCase().includes(keyword.toLowerCase())
-        const contentMatch = item.vod_content && item.vod_content.toLowerCase().includes(keyword.toLowerCase())
-        const blurbMatch = item.vod_blurb && item.vod_blurb.toLowerCase().includes(keyword.toLowerCase())
-        return titleMatch || actorMatch || directorMatch || typeMatch || contentMatch || blurbMatch
-      })
-      total.value = list.value.length
-      console.log('[Search] 过滤后搜索结果:', list.value.length, '个视频')
-    }
-
-    // 综合搜索：支持按演员名称、作品、时间、语言类型等标签搜索
-    if (list.value.length === 0) {
-      try {
-        // 尝试不同的搜索参数
-        const searchParams = [
-          { ac: 'detail', wd: keyword },
-          { ac: 'detail', actor: keyword },
-          { ac: 'detail', director: keyword },
-          { ac: 'detail', year: keyword },
-          { ac: 'detail', language: keyword }
-        ]
-        
-        // 尝试所有搜索参数
-        for (const param of searchParams) {
-          const searchData = await apiCall(param)
-          if (searchData.list && searchData.list.length > 0) {
-            list.value = searchData.list
-            total.value = searchData.total || searchData.list.length
-            break
-          }
-        }
-      } catch (e) {
-        console.error('综合搜索失败', e)
-      }
-    }
-
-    // 如果当前源搜索结果为空，尝试从所有源搜索
-    if (list.value.length === 0) {
-      try {
-        const allData = await fetchFromAllSources({ ac: 'detail', wd: keyword }, 0, 20)
-        list.value = allData.list || []
-        total.value = allData.total || allData.list?.length || 0
-      } catch (e) {
-        console.error('从所有源搜索失败', e)
-      }
-    }
+    total.value = data.total || list.value.length || 0
 
     // 添加到搜索历史
-    addToHistory(keyword)
+    addToHistory(keyword.trim())
   } catch (e) {
     console.error('搜索失败', e)
     list.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }

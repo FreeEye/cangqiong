@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import NavBar from '@/components/NavBar.vue'
 import VideoCard from '@/components/VideoCard.vue'
 import { LayoutGrid, ChevronLeft, ChevronRight, Filter, Search, Database, Layers, X } from 'lucide-vue-next'
-import { apiCall, videoSources, setCurrentSource, initSourceSetting, fetchFromAllSources } from '@/utils/api'
+import { apiCall, videoSources, setCurrentSource, initSourceSetting, fetchFromAllSources, searchVideos as apiSearchVideos } from '@/utils/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -145,7 +145,7 @@ const fetchVideos = async (page = 1) => {
 }
 
 // --- 搜索视频 ---
-const searchVideos = async () => {
+const handleSearchVideos = async () => {
   if (!searchQuery.value.trim()) {
     isSearching.value = false
     fetchVideos(1)
@@ -155,15 +155,7 @@ const searchVideos = async () => {
   loading.value = true
   isSearching.value = true
   try {
-    let data
-    if (useAllSources.value) {
-      // 从所有源搜索 - 获取更多结果
-      data = await fetchFromAllSources({ ac: 'detail', wd: searchQuery.value.trim() }, 0, 10)
-    } else {
-      // 从当前选中的源搜索
-      setCurrentSource(currentSourceIndex.value)
-      data = await apiCall({ ac: 'detail', wd: searchQuery.value.trim() })
-    }
+    const data = await apiSearchVideos(searchQuery.value.trim())
     
     searchResults.value = data.list || []
     videoList.value = data.list || []
@@ -182,6 +174,9 @@ const searchVideos = async () => {
     loading.value = false
   }
 }
+
+// 兼容旧的函数名（如果模板里有调用）
+const searchVideos = handleSearchVideos
 
 // 清除搜索
 const clearSearch = () => {

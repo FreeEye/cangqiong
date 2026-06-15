@@ -151,14 +151,22 @@ const fetchFromStaticJson = async (params) => {
       result.list = result.list.filter(item => String(item.type_id) === String(params.t))
       result.total = result.list.length
     }
-    if (params.wd && result.list) {
-      const kw = String(params.wd).toLowerCase()
+    // wd: 关键词搜索 - 做全量数据搜索，不应用分页
+    const isSearch = params.wd || params.keyword || params.search
+    if (isSearch && result.list) {
+      const kw = String(isSearch).toLowerCase()
       result.list = result.list.filter(item => {
-        const name = String(item.vod_name || '').toLowerCase()
-        const actor = String(item.vod_actor || '').toLowerCase()
-        return name.indexOf(kw) !== -1 || actor.indexOf(kw) !== -1
+        const fieldsToSearch = [
+          String(item.vod_name || ''),
+          String(item.vod_actor || ''),
+          String(item.vod_director || ''),
+          String(item.vod_type_name || item.type_name || ''),
+          String(item.vod_en || ''),
+        ]
+        return fieldsToSearch.some(f => f.toLowerCase().includes(kw))
       })
       result.total = result.list.length
+      return result // 搜索不走分页
     }
     if (params.pg && result.list) {
       const page = parseInt(params.pg) || 1
@@ -356,22 +364,96 @@ export const fetchFromAllSources = async (params, maxResults = 0, maxPages = 3) 
 // 搜索
 export const searchVideos = async (keyword) => {
   if (!keyword || !keyword.trim()) return { list: [], total: 0 }
-  const data = await fetchFromCurrentSource({ ac: 'detail', wd: keyword.trim() })
-  if (data.list && data.list.length > 0) {
-    const kw = keyword.toLowerCase()
-    const filtered = data.list.filter(item => {
-      const titleMatch = String(item.vod_name || '').toLowerCase().includes(kw)
-      const actorMatch = String(item.vod_actor || '').toLowerCase().includes(kw)
-      const directorMatch = String(item.vod_director || '').toLowerCase().includes(kw)
-      return titleMatch || actorMatch || directorMatch
-    })
-    if (filtered.length > 0) {
-      data.list = filtered
-      data.total = filtered.length
-      return data
-    }
+  const kw = keyword.trim().toLowerCase()
+  const matchFields = (item) => {
+    if (!item) return false
+    const fields = [
+      String(item.vod_name || ''),
+      String(item.vod_actor || ''),
+      String(item.vod_director || ''),
+      String(item.vod_type_name || item.type_name || ''),
+      String(item.vod_en || ''),
+      String(item.vod_blurb || ''),
+      String(item.vod_content || ''),
+    ]
+    return fields.some(f => f.toLowerCase().includes(kw))
   }
-  return { list: [], total: 0 }
+
+  // 策略 1: 先从静态 JSON 搜索（最稳定、最快）
+  try {
+    const staticData = await fetchFromStaticJson({ wd: keyword })
+    if (staticData && staticData.list && staticData.list.length > 0) {
+      const filtered = staticData.list.filter(matchFields)
+      if (filtered.length > 0) {
+        return { list: filtered, total: filtered.length, class: staticData.class || DEFAULT_CATEGORIES }
+      }
+    }
+  } catch { /* 继续降级 */ }
+
+  // 策略 2: Cloudflare Pages 上 - 通过代理从多源拉取数据再做客户端搜索
+  if (!isGitHubPages()) {
+    try {
+      const allResults = []
+      const seen = new Set()
+      // 遍历所有源，拉取 pg=1~3 的数据，然后做客户端搜索
+      for (let srcIdx = 0; srcIdx < videoSources.length; srcIdx++) {
+        for (let page = 1; page <= 3; page++) {
+          try {
+            const sourceData = await fetchFromPagesProxy({ ac: 'detail', pg: page, source: srcIdx })
+            if (sourceData && sourceData.list && sourceData.list.length > 0) {
+              for (const item of sourceData.list) {
+                if (!item || !item.vod_name) continue
+                const key = `${item.vod_name}_${item.vod_id || ''}`
+                if (!seen.has(key)) {
+                  seen.add(key)
+                  allResults.push(item)
+                }
+              }
+              if (sourceData.list.length < 20) break
+            } else {
+              break
+            }
+          } catch { break }
+        }
+      }
+      const filtered = allResults.filter(matchFields)
+      if (filtered.length > 0) {
+        return { list: filtered, total: filtered.length, class: DEFAULT_CATEGORIES }
+      }
+    } catch { /* 继续降级 */ }
+  }
+
+  // 策略 3: CORS 代理 - 拉取数据做客户端搜索
+  try {
+    const allResults = []
+    const seen = new Set()
+    for (let srcIdx = 0; srcIdx < videoSources.length; srcIdx++) {
+      for (let page = 1; page <= 2; page++) {
+        try {
+          const sourceData = await fetchFromCorsProxies({ ac: 'detail', pg: page }, srcIdx)
+          if (sourceData && sourceData.list && sourceData.list.length > 0) {
+            for (const item of sourceData.list) {
+              if (!item || !item.vod_name) continue
+              const key = `${item.vod_name}_${item.vod_id || ''}`
+              if (!seen.has(key)) {
+                seen.add(key)
+                allResults.push(item)
+              }
+            }
+          } else {
+            break
+          }
+        } catch { break }
+      }
+    }
+    const filtered = allResults.filter(matchFields)
+    if (filtered.length > 0) {
+      return { list: filtered, total: filtered.length, class: DEFAULT_CATEGORIES }
+    }
+  } catch { /* 忽略，继续返回空 */ }
+
+  // 兜底：返回空
+  return { list: [], total: 0, class: DEFAULT_CATEGORIES }
 }
 
 // 视频详情

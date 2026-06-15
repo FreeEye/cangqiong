@@ -18,15 +18,14 @@ const FALLBACK_CATEGORIES = [
   { type_id: 4, type_name: '动漫' }
 ]
 
-// 自定义过滤名称
-const diyName = ['电影解说', '体育']
+// 自定义过滤名称 - 过滤掉小众分类，避免菜单过长
+const diyName = ['电影解说', '体育', '纪录片', '短剧', '海外剧']
 
-// 额外分类标签
-const additionalCategories = [
-  { name: '纪录片', path: '/category/100', key: '100' },
-  { name: '短剧', path: '/category/103', key: '103' },
-  { name: '海外剧', path: '/category/104', key: '104' }
-]
+// 额外分类标签 - 折叠在「更多」里
+const additionalCategories = []
+
+// 主分类数量上限（避免菜单过长遮住搜索框）
+const MAX_MAIN_MENU = 5
 
 const fetchCategories = async () => {
   try {
@@ -38,17 +37,19 @@ const fetchCategories = async () => {
     if (!Array.isArray(categories)) categories = FALLBACK_CATEGORIES
     if (categories.length === 0) categories = FALLBACK_CATEGORIES
 
-    // 过滤掉 diyName 中的分类
+    // 过滤掉 diyName 中的分类 - 避免菜单过长
     const filterData = categories.filter(item => item && item.type_name && !diyName.includes(item.type_name))
+    
+    // 限制主分类数量 - 保证搜索框可见
+    const limitedData = filterData.slice(0, MAX_MAIN_MENU)
 
     project.menuList = [
       { name: '首页', path: '/home' },
-      ...filterData.map(item => ({
+      ...limitedData.map(item => ({
         name: item.type_name,
         path: `/category/${item.type_id}`,
         key: item.type_id
       })),
-      ...additionalCategories
     ]
   } catch (e) {
     console.warn('获取分类失败，使用默认分类', e?.message || e)
@@ -59,7 +60,6 @@ const fetchCategories = async () => {
         path: `/category/${item.type_id}`,
         key: item.type_id
       })),
-      ...additionalCategories
     ]
   }
 }
@@ -229,20 +229,18 @@ watch(() => route.path, () => {
         </span>
       </div>
 
-      <!-- 2. PC端 菜单 (大屏显示) -->
-      <div class="hidden md:flex items-center gap-2">
+      <!-- 2. PC端 菜单 (中大屏显示) - 横向滚动，避免过长遮住搜索框 -->
+      <div class="hidden md:flex items-center gap-1 overflow-x-auto thin-scrollbar flex-1 min-w-0 max-w-md lg:max-w-lg xl:max-w-xl">
         <router-link
           v-for="item in project.menuList"
           :key="item.path"
           :to="item.path"
           @click="changeType(item.key || '')"
-          class="relative px-4 py-2 text-sm font-medium transition-all duration-300 rounded-full group"
+          class="relative px-3 py-2 text-sm font-medium transition-all duration-300 rounded-full group whitespace-nowrap flex-shrink-0"
           :class="isActive(item.path) ? 'text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'"
         >
           {{ item.name }}
-          <!-- 选中/Hover 效果 -->
-          <span v-if="isActive(item.path)" class="absolute bottom-0 left-20% border-rd-8px h-1 right-20%  bg-purple-500 shadow-[0_0_8px_2px_rgba(168,85,247,0.8)]" />
-          <span v-else class="absolute bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-gray-500 opacity-0 transition-opacity group-hover:opacity-100" />
+          <span v-if="isActive(item.path)" class="absolute bottom-0 left-1/4 right-1/4 h-1 bg-purple-500 shadow-[0_0_8px_2px_rgba(168,85,247,0.8)]" />
         </router-link>
       </div>
       <div class="flex items-center gap-4">

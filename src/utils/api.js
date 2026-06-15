@@ -184,7 +184,7 @@ const fetchFromStaticJson = async (params) => {
   }
 }
 
-// ─── 策略 3: CORS 公共代理
+// ─── 策略 3: CORS 公共代理 (多代理轮询，提高成功率)
 const corsProxies = [
   {
     name: 'allorigins-get',
@@ -203,6 +203,42 @@ const corsProxies = [
   {
     name: 'allorigins-raw',
     build: (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  },
+  {
+    name: 'corsproxy-io',
+    build: (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  },
+  {
+    name: 'codetabs',
+    build: (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+  },
+  {
+    name: '1pt-co',
+    build: (url) => `https://api.1pt.co/addURL?url=${encodeURIComponent(url)}`,
+    parseJson: (text) => {
+      try {
+        const outer = JSON.parse(text)
+        const content = outer.content || outer.result
+        if (typeof content === 'string') {
+          return JSON.parse(content)
+        }
+        return content || outer
+      } catch { return null }
+    },
+  },
+  {
+    name: 'whateverorigin',
+    build: (url) => `https://api.whateverorigin.org/get?url=${encodeURIComponent(url)}`,
+    parseJson: (text) => {
+      try {
+        const outer = JSON.parse(text)
+        const content = outer.contents || outer.data
+        if (typeof content === 'string') {
+          return JSON.parse(content)
+        }
+        return content || outer
+      } catch { return null }
+    },
   },
 ]
 

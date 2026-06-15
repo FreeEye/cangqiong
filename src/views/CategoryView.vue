@@ -303,50 +303,45 @@ watch(curTypeId,
 
         </div>
 
-        <!-- 视频源选择 -->
-        <div class="flex flex-wrap items-center gap-3">
-          <div class="flex items-center gap-2 text-gray-400 mr-2">
-            <Database class="w-4 h-4" />
-            <span class="text-sm font-medium">视频源:</span>
-          </div>
-          <button 
-            @click="useAllVideoSources" 
-            class="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 border-2"
-            :class="useAllSources ? 'bg-gradient-to-r from-orange-500 to-red-500 border-orange-400 text-white shadow-lg shadow-orange-500/40' : 'bg-[#1a1b23] border-transparent text-gray-400 hover:text-white hover:bg-[#252730] hover:border-white/10'"
+        <!-- 视频源选择 (折叠式，避免占据太多空间) -->
+        <div class="flex items-center gap-3 flex-wrap">
+          <button
+            @click="useAllVideoSources"
+            class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 border"
+            :class="useAllSources ? 'bg-gradient-to-r from-orange-500 to-red-500 border-orange-400 text-white shadow-lg shadow-orange-500/30' : 'bg-[#1a1b23] border-white/10 text-gray-400 hover:text-white hover:bg-[#252730]'"
           >
-            <Layers class="w-4 h-4" />
+            <Layers class="w-3.5 h-3.5" />
             全部源
           </button>
-          <button 
-            v-for="(source, index) in videoSources" 
-            :key="index" 
-            @click="switchVideoSource(index)" 
-            class="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 border-2"
-            :class="!useAllSources && currentSourceIndex === index ? 'bg-gradient-to-r from-orange-500 to-red-500 border-orange-400 text-white shadow-lg shadow-orange-500/40' : 'bg-[#1a1b23] border-transparent text-gray-400 hover:text-white hover:bg-[#252730] hover:border-white/10'"
+          <button
+            v-for="(source, index) in videoSources"
+            :key="index"
+            @click="switchVideoSource(index)"
+            class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 border"
+            :class="!useAllSources && currentSourceIndex === index ? 'bg-gradient-to-r from-orange-500 to-red-500 border-orange-400 text-white shadow-lg shadow-orange-500/30' : 'bg-[#1a1b23] border-white/10 text-gray-400 hover:text-white hover:bg-[#252730]'"
           >
-            <Database class="w-4 h-4" />
+            <Database class="w-3.5 h-3.5" />
             {{ source.name }}
           </button>
         </div>
 
-        <!-- 横向滚动分类条 -->
-        <div class="relative group">
+        <!-- 横向滚动分类条 (精简版) -->
+        <div v-if="categoryList.length > 0" class="relative">
           <div
             ref="scrollContainer"
             @wheel.prevent="handleWheel"
-            class="flex items-center gap-3 overflow-x-auto pb-4 thin-scrollbar"
+            class="flex items-center gap-2 overflow-x-auto pb-3 thin-scrollbar"
           >
-            <span class="flex items-center gap-1 text-sm font-bold text-gray-400 mr-2 flex-shrink-0">
-              <Filter class="w-4 h-4" /> 筛选:
+            <span class="flex items-center gap-1 text-xs font-bold text-gray-500 mr-1 flex-shrink-0">
+              <Filter class="w-3.5 h-3.5" /> 筛选:
             </span>
 
-            <!-- 全部选项 -->
             <div
               @click="changeType('')"
-              class="px-5 cursor-pointer py-3 rounded-xl text-base font-bold transition-all whitespace-nowrap border-2"
+              class="px-3 py-1.5 cursor-pointer rounded-lg text-xs font-bold transition-all whitespace-nowrap border"
               :class="!curTypeId
-                ? 'bg-gradient-to-r from-orange-500 to-red-500 border-orange-400 text-white shadow-lg shadow-orange-500/40'
-                : 'bg-[#1a1b23] border-transparent text-gray-400 hover:text-white hover:bg-[#252730] hover:border-white/10'"
+                ? 'bg-gradient-to-r from-orange-500 to-red-500 border-orange-400 text-white shadow-lg shadow-orange-500/30'
+                : 'bg-[#1a1b23] border-white/10 text-gray-400 hover:text-white hover:bg-[#252730]'"
             >
               全部
             </div>
@@ -355,16 +350,14 @@ watch(curTypeId,
               v-for="cat in categoryList"
               :key="cat.type_id"
               @click="changeType(cat.type_id)"
-              class="px-5 cursor-pointer py-3 rounded-xl text-base font-bold transition-all whitespace-nowrap border-2"
+              class="px-3 py-1.5 cursor-pointer rounded-lg text-xs font-bold transition-all whitespace-nowrap border"
               :class="curTypeId == cat.type_id
-                ? 'bg-gradient-to-r from-orange-500 to-red-500 border-orange-400 text-white shadow-lg shadow-orange-500/40'
-                : 'bg-[#1a1b23] border-transparent text-gray-400 hover:text-white hover:bg-[#252730] hover:border-white/10'"
+                ? 'bg-gradient-to-r from-orange-500 to-red-500 border-orange-400 text-white shadow-lg shadow-orange-500/30'
+                : 'bg-[#1a1b23] border-white/10 text-gray-400 hover:text-white hover:bg-[#252730]'"
             >
               {{ cat.type_name }}
             </div>
           </div>
-          <!-- 渐变遮罩提示可滚动 -->
-          <div class="absolute right-0 top-0 bottom-4 w-12 bg-gradient-to-l from-[#0f1014] to-transparent pointer-events-none md:hidden" />
         </div>
       </div>
 

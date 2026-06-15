@@ -108,14 +108,24 @@ const normalizeResponse = (data, sourceName) => {
   return { list, class: cls }
 }
 
-// ─── 策略 1: Pages Function 代理（Cloudflare Pages）
+// 我们的 Cloudflare Pages 代理主机（GitHub Pages 上通过它跨域获取实时数据）
+const CLOUDFLARE_PAGES_HOST = 'https://cangqiong-9gv.pages.dev'
+
+// ─── 策略 1: Pages Function 代理
+// - Cloudflare Pages / 本地开发: 同域 /api/proxy
+// - GitHub Pages: 跨域 https://cangqiong-9gv.pages.dev/api/proxy (proxy.js 有 CORS 头)
 const fetchFromPagesProxy = async (params, timeout = 15000) => {
-  if (isGitHubPages()) {
-    throw new Error('GitHub Pages does not support proxy')
-  }
   initSourceSetting()
   const queryString = new URLSearchParams(params).toString()
-  const proxyUrl = `${window.location.origin}/api/proxy?${queryString}`
+
+  // 根据环境选择代理 URL
+  let proxyUrl
+  if (isGitHubPages()) {
+    proxyUrl = `${CLOUDFLARE_PAGES_HOST}/api/proxy?${queryString}`
+  } else {
+    proxyUrl = `${window.location.origin}/api/proxy?${queryString}`
+  }
+
   try {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeout)
@@ -184,8 +194,18 @@ const fetchFromStaticJson = async (params) => {
   }
 }
 
-// ─── 策略 3: CORS 公共代理 (多代理轮询，提高成功率)
+// ─── 策略 3: CORS 公共代理（仅作最后的兜底，大多数公共代理不稳定/已失效）
+// 注意：GitHub Pages 主要策略是 Cloudflare Pages 代理 (CLOUDFLARE_PAGES_HOST)，
+//       CORS 代理仅在 Cloudflare Pages 也不可用时兜底
 const corsProxies = [
+  {
+    name: 'corsproxy-io',
+    build: (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  },
+  {
+    name: 'allorigins-raw',
+    build: (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  },
   {
     name: 'allorigins-get',
     build: (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
@@ -200,49 +220,9 @@ const corsProxies = [
       } catch { return null }
     },
   },
-  {
-    name: 'allorigins-raw',
-    build: (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  },
-  {
-    name: 'corsproxy-io',
-    build: (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-  },
-  {
-    name: 'codetabs',
-    build: (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-  },
-  {
-    name: '1pt-co',
-    build: (url) => `https://api.1pt.co/addURL?url=${encodeURIComponent(url)}`,
-    parseJson: (text) => {
-      try {
-        const outer = JSON.parse(text)
-        const content = outer.content || outer.result
-        if (typeof content === 'string') {
-          return JSON.parse(content)
-        }
-        return content || outer
-      } catch { return null }
-    },
-  },
-  {
-    name: 'whateverorigin',
-    build: (url) => `https://api.whateverorigin.org/get?url=${encodeURIComponent(url)}`,
-    parseJson: (text) => {
-      try {
-        const outer = JSON.parse(text)
-        const content = outer.contents || outer.data
-        if (typeof content === 'string') {
-          return JSON.parse(content)
-        }
-        return content || outer
-      } catch { return null }
-    },
-  },
 ]
 
-const fetchFromCorsProxies = async (params, specificSourceIndex = null, timeout = 15000) => {
+const fetchFromCorsProxies = async (params, specificSourceIndex = null, timeout = 8000) => {
   initSourceSetting()
   const queryString = new URLSearchParams(params).toString()
   const sourceOffsets = specificSourceIndex !== null
@@ -333,46 +313,46 @@ export const fetchFromAllSources = async (params, maxResults = 0, maxPages = 3) 
   if (memCached) return memCached
   const persistCached = getPersistentCache(cacheKey)
   if (persistCached) return persistCached
-  // 先尝试 Pages Function（真实数据），多页拉取
+
+  // 策略 1: Pages Function 代理（真实数据）- GitHub Pages 上通过 Cloudflare Pages 代理
   initSourceSetting()
-  if (!isGitHubPages()) {
-    try {
-      const allList = []
-      const seen = new Set()
-      let allClass = []
-      // 尝试多页拉取
-      for (let page = 1; page <= maxPages; page++) {
-        try {
-          const pageParams = { ...params, pg: page, source: currentSourceIndex }
-          const pageData = await fetchFromPagesProxy(pageParams)
-          if (pageData && pageData.list && pageData.list.length > 0) {
-            if (pageData.class && pageData.class.length > 0 && allClass.length === 0) {
-              allClass = pageData.class
-            }
-            for (const item of pageData.list) {
-              if (!item || !item.vod_name) continue
-              const key = `${item.vod_name}_${item.vod_year || ''}_${item.vod_id}`
-              if (!seen.has(key)) {
-                seen.add(key); allList.push(item)
-              }
-            }
-            if (pageData.list.length < 20) break
-          } else {
-            break
+  try {
+    const allList = []
+    const seen = new Set()
+    let allClass = []
+    for (let page = 1; page <= maxPages; page++) {
+      try {
+        const pageParams = { ...params, pg: page, source: currentSourceIndex }
+        const pageData = await fetchFromPagesProxy(pageParams)
+        if (pageData && pageData.list && pageData.list.length > 0) {
+          if (pageData.class && pageData.class.length > 0 && allClass.length === 0) {
+            allClass = pageData.class
           }
-        } catch { break }
-      }
-      if (allList.length > 0) {
-        allList.sort((a, b) => (parseInt(b.vod_hits) || 0) - (parseInt(a.vod_hits) || 0))
-        const finalList = maxResults > 0 ? allList.slice(0, maxResults) : allList
-        const result = { list: finalList, total: finalList.length, class: allClass.length > 0 ? allClass : DEFAULT_CATEGORIES }
-        setCache(cacheKey, result)
-        setPersistentCache(cacheKey, result)
-        return result
-      }
-    } catch { /* 降级 */ }
-  }
-  // 降级：静态 JSON（GitHub Pages 主要用这个）
+          for (const item of pageData.list) {
+            if (!item || !item.vod_name) continue
+            const key = `${item.vod_name}_${item.vod_year || ''}_${item.vod_id}`
+            if (!seen.has(key)) {
+              seen.add(key)
+              allList.push(item)
+            }
+          }
+          if (pageData.list.length < 20) break
+        } else {
+          break
+        }
+      } catch { break }
+    }
+    if (allList.length > 0) {
+      allList.sort((a, b) => (parseInt(b.vod_hits) || 0) - (parseInt(a.vod_hits) || 0))
+      const finalList = maxResults > 0 ? allList.slice(0, maxResults) : allList
+      const result = { list: finalList, total: finalList.length, class: allClass.length > 0 ? allClass : DEFAULT_CATEGORIES }
+      setCache(cacheKey, result)
+      setPersistentCache(cacheKey, result)
+      return result
+    }
+  } catch { /* 降级到下一个策略 */ }
+
+  // 策略 2: 静态 JSON（构建时预取）
   try {
     const result = await fetchFromStaticJson(params)
     if (result && result.list && result.list.length > 0) {
@@ -383,7 +363,8 @@ export const fetchFromAllSources = async (params, maxResults = 0, maxPages = 3) 
       return result
     }
   } catch { /* 继续降级 */ }
-  // 最后：CORS 代理
+
+  // 策略 3: CORS 代理（最后兜底）
   try {
     const result = await fetchFromCorsProxies(params)
     if (result && result.list && result.list.length > 0) {
@@ -394,6 +375,7 @@ export const fetchFromAllSources = async (params, maxResults = 0, maxPages = 3) 
       return result
     }
   } catch { /* 继续降级 */ }
+
   return { list: [], total: 0, class: DEFAULT_CATEGORIES }
 }
 
@@ -426,38 +408,37 @@ export const searchVideos = async (keyword) => {
     }
   } catch { /* 继续降级 */ }
 
-  // 策略 2: Cloudflare Pages 上 - 通过代理从多源拉取数据再做客户端搜索
-  if (!isGitHubPages()) {
-    try {
-      const allResults = []
-      const seen = new Set()
-      // 遍历所有源，拉取 pg=1~3 的数据，然后做客户端搜索
-      for (let srcIdx = 0; srcIdx < videoSources.length; srcIdx++) {
-        for (let page = 1; page <= 3; page++) {
-          try {
-            const sourceData = await fetchFromPagesProxy({ ac: 'detail', pg: page, source: srcIdx })
-            if (sourceData && sourceData.list && sourceData.list.length > 0) {
-              for (const item of sourceData.list) {
-                if (!item || !item.vod_name) continue
-                const key = `${item.vod_name}_${item.vod_id || ''}`
-                if (!seen.has(key)) {
-                  seen.add(key)
-                  allResults.push(item)
-                }
+  // 策略 2: 通过 Cloudflare Pages 代理从多源拉取数据再做客户端搜索
+  // 注意：GitHub Pages 上也会走这个路径（通过 Cloudflare Pages 的公开代理 URL）
+  try {
+    const allResults = []
+    const seen = new Set()
+    // 遍历所有源，拉取 pg=1~3 的数据，然后做客户端搜索
+    for (let srcIdx = 0; srcIdx < videoSources.length; srcIdx++) {
+      for (let page = 1; page <= 3; page++) {
+        try {
+          const sourceData = await fetchFromPagesProxy({ ac: 'detail', pg: page, source: srcIdx })
+          if (sourceData && sourceData.list && sourceData.list.length > 0) {
+            for (const item of sourceData.list) {
+              if (!item || !item.vod_name) continue
+              const key = `${item.vod_name}_${item.vod_id || ''}`
+              if (!seen.has(key)) {
+                seen.add(key)
+                allResults.push(item)
               }
-              if (sourceData.list.length < 20) break
-            } else {
-              break
             }
-          } catch { break }
-        }
+            if (sourceData.list.length < 20) break
+          } else {
+            break
+          }
+        } catch { break }
       }
-      const filtered = allResults.filter(matchFields)
-      if (filtered.length > 0) {
-        return { list: filtered, total: filtered.length, class: DEFAULT_CATEGORIES }
-      }
-    } catch { /* 继续降级 */ }
-  }
+    }
+    const filtered = allResults.filter(matchFields)
+    if (filtered.length > 0) {
+      return { list: filtered, total: filtered.length, class: DEFAULT_CATEGORIES }
+    }
+  } catch { /* 继续降级 */ }
 
   // 策略 3: CORS 代理 - 拉取数据做客户端搜索
   try {

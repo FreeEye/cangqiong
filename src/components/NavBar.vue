@@ -3,40 +3,74 @@ import { useRoute, useRouter } from 'vue-router'
 import { Search, Clapperboard, Menu, X, Clock, User, BarChart3 } from 'lucide-vue-next' // 引入 Menu 和 X 图标
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import useProjectStore from '@/stores/project'
-import { apiCall } from '@/utils/api'
+import { getCategories } from '@/utils/api'
 
 const router = useRouter()
 const route = useRoute()
 
-// 菜单配置
-
 const project = useProjectStore()
+
+// 默认分类（API 全部失败时的兜底）
+const FALLBACK_CATEGORIES = [
+  { type_id: 1, type_name: '电影' },
+  { type_id: 2, type_name: '电视剧' },
+  { type_id: 3, type_name: '综艺' },
+  { type_id: 4, type_name: '动漫' }
+]
+
+// 自定义过滤名称
+const diyName = ['电影解说', '体育']
+
+// 额外分类标签
+const additionalCategories = [
+  { name: '纪录片', path: '/category/100', key: '100' },
+  { name: '短剧', path: '/category/103', key: '103' },
+  { name: '海外剧', path: '/category/104', key: '104' }
+]
 
 const fetchCategories = async () => {
   try {
-    if (project.menuList.length > 1) return
-    const data = await apiCall({ ac: 'list' })
-    const cData = data.class.filter(item => item.type_pid == 0) || []
-    // 自定义过滤名称
-    const diyName = ['电影解说', '体育']
-    const filterData = cData.filter(item => !diyName.includes(item.type_name)) || []
-    console.log('data', filterData)
-    // 增加更多分类标签
-    const additionalCategories = [
-      { name: '纪录片', path: '/category/100', key: '100' },
-      { name: '综艺', path: '/category/101', key: '101' },
-      { name: '动漫', path: '/category/102', key: '102' },
-      { name: '短剧', path: '/category/103', key: '103' },
-      { name: '海外剧', path: '/category/104', key: '104' }
+    // 如果已经有菜单则直接返回
+    if (project.menuList && Array.isArray(project.menuList) && project.menuList.length > 2) return
+
+    // 使用新的 getCategories（带多代理轮询 + 多源切换 + 强兜底）
+    let categories = await getCategories()
+    if (!Array.isArray(categories)) categories = FALLBACK_CATEGORIES
+    if (categories.length === 0) categories = FALLBACK_CATEGORIES
+
+    // 过滤掉 diyName 中的分类
+    const filterData = categories.filter(item => item && item.type_name && !diyName.includes(item.type_name))
+
+    project.menuList = [
+      { name: '首页', path: '/home' },
+      ...filterData.map(item => ({
+        name: item.type_name,
+        path: `/category/${item.type_id}`,
+        key: item.type_id
+      })),
+      ...additionalCategories
     ]
-    project.menuList = [{ name: '首页', path: '/home' }, ...filterData.map(item => ({
-      name: item.type_name,
-      path: `/category/${item.type_id}`,
-      key: item.type_id
-    })), ...additionalCategories]
   } catch (e) {
-    console.error('获取分类失败', e)
+    console.warn('获取分类失败，使用默认分类', e?.message || e)
+    project.menuList = [
+      { name: '首页', path: '/home' },
+      ...FALLBACK_CATEGORIES.map(item => ({
+        name: item.type_name,
+        path: `/category/${item.type_id}`,
+        key: item.type_id
+      })),
+      ...additionalCategories
+    ]
   }
+}
+
+// 首次初始化：保证 menuList 永远是数组
+if (!project.menuList || !Array.isArray(project.menuList)) {
+  project.menuList = [{ name: '首页', path: '/home' }, ...FALLBACK_CATEGORIES.map(item => ({
+    name: item.type_name,
+    path: `/category/${item.type_id}`,
+    key: item.type_id
+  }))]
 }
 fetchCategories()
 // 状态：移动端菜单是否打开

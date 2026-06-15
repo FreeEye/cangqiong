@@ -412,6 +412,7 @@ onUnmounted(() => {
             <VideoCard v-if="item.type === 'video'" :video="item.data" @click="goToDetail(item.data.vod_id)" />
             <AdBanner v-else :slot-id="'home-feed-2'" type="native" />
           </template>
+        </div>
       </section>
 
       <!-- 电影 -->
@@ -487,6 +488,7 @@ onUnmounted(() => {
             <VideoCard v-if="item.type === 'video'" :video="item.data" @click="goToDetail(item.data.vod_id)" />
             <AdBanner v-else :slot-id="'home-feed-2'" type="native" />
           </template>
+        </div>
       </section>
     </main>
 

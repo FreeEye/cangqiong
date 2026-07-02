@@ -8,11 +8,15 @@ const fs = require('fs')
 const path = require('path')
 
 const VIDEO_SOURCES = [
+  // ─── 第一梯队：稳定高优先级
+  { name: '非凡资源', url: 'https://cj.ffzyapi.com/api.php/provide/vod/' },
+  { name: '量子资源', url: 'https://cj.lziapi.com/api.php/provide/vod/' },
   { name: '如意资源', url: 'https://cj.rycjapi.com/api.php/provide/vod/' },
   { name: '极速资源', url: 'https://jszyapi.com/api.php/provide/vod/' },
-  { name: '卧龙资源', url: 'https://wolongzyw.com/api.php/provide/vod/' },
+  // ─── 第二梯队：备选资源
+  { name: '光速资源', url: 'https://api.guangsuapi.com/api.php/provide/vod/' },
   { name: '最大资源', url: 'https://api.zuidapi.com/api.php/provide/vod/' },
-  { name: '无尽资源', url: 'https://api.wujinapi.me/api.php/provide/vod/' }
+  { name: '无尽资源', url: 'https://api.wujinapi.com/api.php/provide/vod/' },
 ]
 
 // 确保输出目录存在

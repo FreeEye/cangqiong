@@ -9,11 +9,26 @@ const DEFAULT_CATEGORIES = [
 ]
 
 export const videoSources = [
-  { name: '如意资源', url: 'https://cj.rycjapi.com/api.php/provide/vod/', isAvailable: true, priority: 1 },
-  { name: '极速资源', url: 'https://jszyapi.com/api.php/provide/vod/', isAvailable: true, priority: 2 },
-  { name: '卧龙资源', url: 'https://wolongzyw.com/api.php/provide/vod/', isAvailable: true, priority: 3 },
-  { name: '最大资源', url: 'https://api.zuidapi.com/api.php/provide/vod/', isAvailable: true, priority: 4 },
-  { name: '无尽资源', url: 'https://api.wujinapi.me/api.php/provide/vod/', isAvailable: true, priority: 5 },
+  // ─── 第一梯队：稳定高优先级（优先尝试）
+  { name: '非凡资源', url: 'https://cj.ffzyapi.com/api.php/provide/vod/', isAvailable: true, priority: 1 },
+  { name: '量子资源', url: 'https://cj.lziapi.com/api.php/provide/vod/', isAvailable: true, priority: 2 },
+  { name: '如意资源', url: 'https://cj.rycjapi.com/api.php/provide/vod/', isAvailable: true, priority: 3 },
+  { name: '极速资源', url: 'https://jszyapi.com/api.php/provide/vod/', isAvailable: true, priority: 4 },
+  { name: '红牛资源', url: 'https://www.hongniuzy2.com/api.php/provide/vod/', isAvailable: true, priority: 5 },
+  
+  // ─── 第二梯队：备选资源（第一梯队失败时使用）
+  { name: '光速资源', url: 'https://api.guangsuapi.com/api.php/provide/vod/', isAvailable: true, priority: 6 },
+  { name: '暴风资源', url: 'https://bfzyapi.com/api.php/provide/vod/', isAvailable: true, priority: 7 },
+  { name: '飞速资源', url: 'https://www.feisuzyapi.com/api.php/provide/vod/', isAvailable: true, priority: 8 },
+  { name: '天空资源', url: 'https://m3u8.tiankongapi.com/api.php/provide/vod/', isAvailable: true, priority: 9 },
+  { name: '樱花资源', url: 'https://m3u8.apiyhzy.com/api.php/provide/vod/', isAvailable: true, priority: 10 },
+  { name: '最大资源', url: 'https://api.zuidapi.com/api.php/provide/vod/', isAvailable: true, priority: 11 },
+  { name: '无尽资源', url: 'https://api.wujinapi.com/api.php/provide/vod/', isAvailable: true, priority: 12 },
+  
+  // ─── 第三梯队：备用资源（较少使用）
+  { name: '360资源', url: 'https://360zy.com/api.php/provide/vod/', isAvailable: true, priority: 13 },
+  { name: '索尼资源', url: 'https://suoniapi.com/api.php/provide/vod/', isAvailable: true, priority: 14 },
+  { name: '牛牛资源', url: 'https://api.niuniuzy.me/api.php/provide/vod/', isAvailable: true, priority: 15 },
 ]
 
 let currentSourceIndex = 0

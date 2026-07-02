@@ -12,6 +12,15 @@ const router = useRouter()
 // 在 script setup 中添加
 const scrollContainer = ref(null) // 1. 定义 ref 变量
 
+// 视频源显示控制
+const showAllSources = ref(false) // 是否展开所有视频源
+const primarySourceCount = 5 // 默认显示的主要源数量
+const displayedSources = computed(() => {
+  if (showAllSources.value) return videoSources
+  return videoSources.slice(0, primarySourceCount)
+})
+const hasMoreSources = computed(() => videoSources.length > primarySourceCount)
+
 // 2. 定义滚动处理函数
 const handleWheel = (e) => {
   // e.deltaY > 0 表示向下滚动（对应向右）
@@ -314,7 +323,7 @@ watch(curTypeId,
             全部源
           </button>
           <button
-            v-for="(source, index) in videoSources"
+            v-for="(source, index) in displayedSources"
             :key="index"
             @click="switchVideoSource(index)"
             class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 border"
@@ -322,6 +331,16 @@ watch(curTypeId,
           >
             <Database class="w-3.5 h-3.5" />
             {{ source.name }}
+          </button>
+          <!-- 更多源按钮 -->
+          <button
+            v-if="hasMoreSources"
+            @click="showAllSources = !showAllSources"
+            class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 border bg-[#1a1b23] border-white/10 text-gray-400 hover:text-white hover:bg-[#252730]"
+          >
+            <ChevronLeft v-if="showAllSources" class="w-3.5 h-3.5" />
+            <ChevronRight v-else class="w-3.5 h-3.5" />
+            {{ showAllSources ? '收起' : `更多(${videoSources.length - primarySourceCount})` }}
           </button>
         </div>
 

@@ -77,41 +77,80 @@ async function fetchFromSource (source, params) {
   }
 }
 
-// 合并多个源的视频数据（去重）
+// ─── 数据去重工具（与 src/utils/api.js 保持一致） ───
+function normalizeText (text) {
+  if (!text) return ''
+  return String(text)
+    .replace(/[\s\-_·•·—–(),，。.!！?？【】\[\]《》<>\"''`~@#$%^&*+=\\|\/]/g, '')
+    .toLowerCase()
+    .trim()
+}
+function getDedupKey (item) {
+  if (!item) return ''
+  const nameNorm = normalizeText(item.vod_name || item.name || '')
+  const year = String(item.vod_year || item.year || '0').replace(/\D/g, '')
+  const directorNorm = normalizeText(item.vod_director || item.director || '').slice(0, 6)
+  if (nameNorm) return `n_${nameNorm}_${year}_${directorNorm}`
+  const src = item._source || 's'
+  return `id_${src}_${item.vod_id || item.id || Math.random()}`
+}
+function mergeVideoItem (existingItem, newItem) {
+  const base = (parseInt(existingItem.vod_hits) || 0) >= (parseInt(newItem.vod_hits) || 0)
+    ? existingItem : newItem
+  const other = base === existingItem ? newItem : existingItem
+  const merged = { ...base }
+  const playFromBase = String(base.vod_play_from || '').split('$$$').filter(Boolean)
+  const playFromOther = String(other.vod_play_from || '').split('$$$').filter(Boolean)
+  const playUrlBase = String(base.vod_play_url || '').split('$$$').filter(Boolean)
+  const playUrlOther = String(other.vod_play_url || '').split('$$$').filter(Boolean)
+  const playMap = new Map()
+  playFromBase.forEach((name, i) => { if (name && playUrlBase[i]) playMap.set(name, playUrlBase[i]) })
+  playFromOther.forEach((name, i) => { if (name && playUrlOther[i] && !playMap.has(name)) playMap.set(name, playUrlOther[i]) })
+  const fromArr = Array.from(playMap.keys())
+  const urlArr = Array.from(playMap.values())
+  if (fromArr.length > 0) {
+    merged.vod_play_from = fromArr.join('$$$')
+    merged.vod_play_url = urlArr.join('$$$')
+  }
+  return merged
+}
+function deduplicateList (list) {
+  const map = new Map()
+  for (const item of list) {
+    if (!item || !item.vod_name) continue
+    const key = getDedupKey(item)
+    if (map.has(key)) map.set(key, mergeVideoItem(map.get(key), item))
+    else map.set(key, { ...item })
+  }
+  return Array.from(map.values())
+}
+
+// 合并多个源的视频数据（智能去重+合并）
 function mergeVideoData (results) {
-  const allVideos = []
-  const seen = new Set()
-  let allClass = []
+  const rawList = []
+  const classSet = new Map()
 
   for (const result of results) {
     if (!result.success || !result.data) continue
     const data = result.data
-
-    // 合并分类
-    if (Array.isArray(data.class) && data.class.length > 0) {
-      const existingNames = new Set(allClass.map(c => c.type_name))
+    // 合并分类（去重，以 type_id 为键）
+    if (Array.isArray(data.class)) {
       data.class.forEach(c => {
-        if (c && c.type_name && !existingNames.has(c.type_name)) {
-          allClass.push(c)
-          existingNames.add(c.type_name)
+        if (c && c.type_id != null && !classSet.has(String(c.type_id))) {
+          classSet.set(String(c.type_id), c)
         }
       })
     }
-
-    // 合并视频列表
-    const list = Array.isArray(data.list) ? data.list : []
-    for (const item of list) {
-      if (!item || !item.vod_id) continue
-      const key = `${item.vod_name || ''}_${item.vod_year || ''}_${item.vod_id}`
-      if (!seen.has(key)) {
-        seen.add(key)
-        allVideos.push(item)
-      }
-    }
+    // 合并视频
+    if (Array.isArray(data.list)) rawList.push(...data.list)
   }
 
+  // 智能去重 + 合并播放源
+  const allVideos = deduplicateList(rawList)
   // 按播放量排序
   allVideos.sort((a, b) => (parseInt(b.vod_hits) || 0) - (parseInt(a.vod_hits) || 0))
+
+  const allClass = Array.from(classSet.values())
 
   return {
     code: 1,

@@ -7,12 +7,17 @@
     "dev": "vite",
     "fetch-data": "node scripts/fetch-data.cjs",
     "build": "node scripts/fetch-data.cjs && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node server.cjs",
+    "serve": "npm run build && npm run start",
+    "docker:build": "docker build -t moviehub .",
+    "docker:run": "docker run -p 7860:7860 --rm moviehub"
   },
   "dependencies": {
     "artplayer": "^5.3.0",
     "dayjs": "^1.11.19",
     "echarts": "^5.6.0",
+    "express": "^4.19.2",
     "hls.js": "^1.6.15",
     "lucide-vue-next": "^0.556.0",
     "normalize.css": "^8.0.1",

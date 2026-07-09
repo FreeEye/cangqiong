@@ -94,7 +94,7 @@ const setPersistentCache = (key, data) => {
   } catch { /* ignore */ }
 }
 
-// 工具函数: 判断是否为 GitHub Pages
+// 工具函数: 环境检测
 const isGitHubPages = () => {
   try {
     return typeof window !== 'undefined' && window.location.hostname.indexOf('github.io') !== -1
@@ -102,9 +102,102 @@ const isGitHubPages = () => {
   return false
 }
 
+const isHuggingFaceSpace = () => {
+  try {
+    return typeof window !== 'undefined' &&
+      (window.location.hostname.indexOf('hf.space') !== -1 ||
+       window.location.hostname.indexOf('huggingface.co') !== -1)
+  } catch { /* ignore */ }
+  return false
+}
+
 // 安全 JSON 解析
 const safeJsonParse = (text) => {
   try { return JSON.parse(text) } catch { return null }
+}
+
+// ─── 数据去重工具（解决多源数据完全一致/高度重复问题） ───
+
+// 归一化字符串：去除空格、特殊符号、大小写，用于去重比较
+const normalizeText = (text) => {
+  if (!text) return ''
+  return String(text)
+    .replace(/[\s\-_·•·—–(),，。.!！?？【】\[\]《》<>\"''`~@#$%^&*+=\\|\/]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+// 生成去重键：优先用 (标题归一化 + 年份)，vod_id 只作为辅助
+const getDedupKey = (item) => {
+  if (!item) return ''
+  const nameNorm = normalizeText(item.vod_name || item.name || '')
+  const year = String(item.vod_year || item.year || '0').replace(/\D/g, '')
+  // 额外辅助字段：导演归一化（进一步降低误判）
+  const directorNorm = normalizeText(item.vod_director || item.director || '').slice(0, 6)
+  // 组合键：标题归一化 + 年份 + 导演前缀
+  if (nameNorm) {
+    return `n_${nameNorm}_${year}_${directorNorm}`
+  }
+  // 退回到 vod_id（每个源自己的 id，前面加源名避免冲突）
+  const src = item._source || 's'
+  return `id_${src}_${item.vod_id || item.id || Math.random()}`
+}
+
+// 合并重复条目：保留 vod_hits 更大的那个，并聚合所有播放源
+const mergeVideoItem = (existingItem, newItem) => {
+  // 选择 vod_hits 更大的作为基础
+  const base = (parseInt(existingItem.vod_hits) || 0) >= (parseInt(newItem.vod_hits) || 0)
+    ? existingItem : newItem
+  const other = base === existingItem ? newItem : existingItem
+  const merged = { ...base }
+
+  // 合并播放源信息 (vod_play_from + vod_play_url)
+  const playFromBase = String(base.vod_play_from || '').split('$$$').filter(Boolean)
+  const playFromOther = String(other.vod_play_from || '').split('$$$').filter(Boolean)
+  const playUrlBase = String(base.vod_play_url || '').split('$$$').filter(Boolean)
+  const playUrlOther = String(other.vod_play_url || '').split('$$$').filter(Boolean)
+
+  // 用 Map 去重，键：源名
+  const playMap = new Map()
+  playFromBase.forEach((name, i) => {
+    if (name && playUrlBase[i]) playMap.set(name, playUrlBase[i])
+  })
+  playFromOther.forEach((name, i) => {
+    if (name && playUrlOther[i] && !playMap.has(name)) {
+      playMap.set(name, playUrlOther[i])
+    }
+  })
+  const fromArr = Array.from(playMap.keys())
+  const urlArr = Array.from(playMap.values())
+  if (fromArr.length > 0) {
+    merged.vod_play_from = fromArr.join('$$$')
+    merged.vod_play_url = urlArr.join('$$$')
+  }
+
+  // 记录所有提供过数据的源
+  const sources = new Set([
+    ...String(base._source || '').split(',').filter(Boolean),
+    ...String(other._source || '').split(',').filter(Boolean)
+  ])
+  merged._source = Array.from(sources).join(',')
+  merged._sourceCount = sources.size
+
+  return merged
+}
+
+// 列表去重 + 合并函数
+const deduplicateList = (list) => {
+  const map = new Map()
+  for (const item of list) {
+    if (!item || !item.vod_name) continue
+    const key = getDedupKey(item)
+    if (map.has(key)) {
+      map.set(key, mergeVideoItem(map.get(key), item))
+    } else {
+      map.set(key, { ...item })
+    }
+  }
+  return Array.from(map.values())
 }
 
 // 归一化响应
@@ -321,75 +414,95 @@ export const apiCall = async (params) => {
   }
 }
 
-// 多源合并（拉取多页）
-export const fetchFromAllSources = async (params, maxResults = 0, maxPages = 3) => {
-  const cacheKey = getCacheKey(params, maxPages)
+// 多源合并（拉取多源×多页数据，智能去重）
+export const fetchFromAllSources = async (params, maxResults = 0, maxPages = 2, maxSources = 5) => {
+  const cacheKey = getCacheKey(params, `${maxPages}_${maxSources}`)
   const memCached = getCache(cacheKey)
   if (memCached) return memCached
   const persistCached = getPersistentCache(cacheKey)
   if (persistCached) return persistCached
 
-  // 策略 1: Pages Function 代理（真实数据）- GitHub Pages 上通过 Cloudflare Pages 代理
   initSourceSetting()
+  let allClass = []
+
+  // ─── 策略 1: Pages Function 代理 - 多源×多页真实数据
   try {
-    const allList = []
-    const seen = new Set()
-    let allClass = []
-    for (let page = 1; page <= maxPages; page++) {
-      try {
-        const pageParams = { ...params, pg: page, source: currentSourceIndex }
-        const pageData = await fetchFromPagesProxy(pageParams)
-        if (pageData && pageData.list && pageData.list.length > 0) {
-          if (pageData.class && pageData.class.length > 0 && allClass.length === 0) {
-            allClass = pageData.class
-          }
-          for (const item of pageData.list) {
-            if (!item || !item.vod_name) continue
-            const key = `${item.vod_name}_${item.vod_year || ''}_${item.vod_id}`
-            if (!seen.has(key)) {
-              seen.add(key)
-              allList.push(item)
+    const rawList = []
+    // 从当前源开始轮询，尝试多个源
+    for (let srcOffset = 0; srcOffset < maxSources && srcOffset < videoSources.length; srcOffset++) {
+      const srcIdx = (currentSourceIndex + srcOffset) % videoSources.length
+      for (let page = 1; page <= maxPages; page++) {
+        try {
+          const pageParams = { ...params, pg: page, source: srcIdx }
+          const pageData = await fetchFromPagesProxy(pageParams)
+          if (pageData && pageData.list && pageData.list.length > 0) {
+            // 只拿一次分类（从第一个有效源）
+            if (pageData.class && pageData.class.length > 0 && allClass.length === 0) {
+              allClass = pageData.class
             }
+            rawList.push(...pageData.list)
+            if (pageData.list.length < 20) break
+          } else {
+            break
           }
-          if (pageData.list.length < 20) break
-        } else {
-          break
-        }
-      } catch { break }
+        } catch { break }
+      }
     }
-    if (allList.length > 0) {
-      allList.sort((a, b) => (parseInt(b.vod_hits) || 0) - (parseInt(a.vod_hits) || 0))
-      const finalList = maxResults > 0 ? allList.slice(0, maxResults) : allList
+    // 去重合并
+    if (rawList.length > 0) {
+      const deduped = deduplicateList(rawList)
+      deduped.sort((a, b) => (parseInt(b.vod_hits) || 0) - (parseInt(a.vod_hits) || 0))
+      const finalList = maxResults > 0 ? deduped.slice(0, maxResults) : deduped
       const result = { list: finalList, total: finalList.length, class: allClass.length > 0 ? allClass : DEFAULT_CATEGORIES }
       setCache(cacheKey, result)
       setPersistentCache(cacheKey, result)
       return result
     }
-  } catch { /* 降级到下一个策略 */ }
+  } catch { /* 降级 */ }
 
-  // 策略 2: 静态 JSON（构建时预取）
+  // ─── 策略 2: 静态 JSON
   try {
     const result = await fetchFromStaticJson(params)
     if (result && result.list && result.list.length > 0) {
-      result.list.sort((a, b) => (parseInt(b.vod_hits) || 0) - (parseInt(a.vod_hits) || 0))
-      if (maxResults > 0) result.list = result.list.slice(0, maxResults)
+      const deduped = deduplicateList(result.list)
+      deduped.sort((a, b) => (parseInt(b.vod_hits) || 0) - (parseInt(a.vod_hits) || 0))
+      if (maxResults > 0) result.list = deduped.slice(0, maxResults)
+      else result.list = deduped
+      result.total = result.list.length
       setCache(cacheKey, result)
       setPersistentCache(cacheKey, result)
       return result
     }
-  } catch { /* 继续降级 */ }
+  } catch { /* 降级 */ }
 
-  // 策略 3: CORS 代理（最后兜底）
+  // ─── 策略 3: CORS 代理
   try {
-    const result = await fetchFromCorsProxies(params)
-    if (result && result.list && result.list.length > 0) {
-      result.list.sort((a, b) => (parseInt(b.vod_hits) || 0) - (parseInt(a.vod_hits) || 0))
-      if (maxResults > 0) result.list = result.list.slice(0, maxResults)
+    const rawList = []
+    for (let srcOffset = 0; srcOffset < Math.min(3, videoSources.length); srcOffset++) {
+      const srcIdx = (currentSourceIndex + srcOffset) % videoSources.length
+      for (let page = 1; page <= maxPages; page++) {
+        try {
+          const pageData = await fetchFromCorsProxies({ ...params, pg: page }, srcIdx)
+          if (pageData && pageData.list && pageData.list.length > 0) {
+            if (pageData.class && pageData.class.length > 0 && allClass.length === 0) {
+              allClass = pageData.class
+            }
+            rawList.push(...pageData.list)
+            if (pageData.list.length < 20) break
+          } else break
+        } catch { break }
+      }
+    }
+    if (rawList.length > 0) {
+      const deduped = deduplicateList(rawList)
+      deduped.sort((a, b) => (parseInt(b.vod_hits) || 0) - (parseInt(a.vod_hits) || 0))
+      const finalList = maxResults > 0 ? deduped.slice(0, maxResults) : deduped
+      const result = { list: finalList, total: finalList.length, class: allClass.length > 0 ? allClass : DEFAULT_CATEGORIES }
       setCache(cacheKey, result)
       setPersistentCache(cacheKey, result)
       return result
     }
-  } catch { /* 继续降级 */ }
+  } catch { /* 降级 */ }
 
   return { list: [], total: 0, class: DEFAULT_CATEGORIES }
 }
@@ -412,79 +525,63 @@ export const searchVideos = async (keyword) => {
     return fields.some(f => f.toLowerCase().includes(kw))
   }
 
-  // 策略 1: 先从静态 JSON 搜索（最稳定、最快）
+  // 策略 1: 静态 JSON 搜索
   try {
     const staticData = await fetchFromStaticJson({ wd: keyword })
     if (staticData && staticData.list && staticData.list.length > 0) {
-      const filtered = staticData.list.filter(matchFields)
+      const deduped = deduplicateList(staticData.list)
+      const filtered = deduped.filter(matchFields)
       if (filtered.length > 0) {
         return { list: filtered, total: filtered.length, class: staticData.class || DEFAULT_CATEGORIES }
       }
     }
-  } catch { /* 继续降级 */ }
+  } catch { /* 继续 */ }
 
-  // 策略 2: 通过 Cloudflare Pages 代理从多源拉取数据再做客户端搜索
-  // 注意：GitHub Pages 上也会走这个路径（通过 Cloudflare Pages 的公开代理 URL）
+  // 策略 2: Pages 代理多源搜索
   try {
-    const allResults = []
-    const seen = new Set()
-    // 遍历所有源，拉取 pg=1~3 的数据，然后做客户端搜索
-    for (let srcIdx = 0; srcIdx < videoSources.length; srcIdx++) {
-      for (let page = 1; page <= 3; page++) {
+    const rawList = []
+    for (let srcIdx = 0; srcIdx < Math.min(6, videoSources.length); srcIdx++) {
+      for (let page = 1; page <= 2; page++) {
         try {
           const sourceData = await fetchFromPagesProxy({ ac: 'detail', pg: page, source: srcIdx })
           if (sourceData && sourceData.list && sourceData.list.length > 0) {
-            for (const item of sourceData.list) {
-              if (!item || !item.vod_name) continue
-              const key = `${item.vod_name}_${item.vod_id || ''}`
-              if (!seen.has(key)) {
-                seen.add(key)
-                allResults.push(item)
-              }
-            }
+            rawList.push(...sourceData.list)
             if (sourceData.list.length < 20) break
-          } else {
-            break
-          }
+          } else break
         } catch { break }
       }
     }
-    const filtered = allResults.filter(matchFields)
-    if (filtered.length > 0) {
-      return { list: filtered, total: filtered.length, class: DEFAULT_CATEGORIES }
+    if (rawList.length > 0) {
+      const deduped = deduplicateList(rawList)
+      const filtered = deduped.filter(matchFields)
+      if (filtered.length > 0) {
+        return { list: filtered, total: filtered.length, class: DEFAULT_CATEGORIES }
+      }
     }
-  } catch { /* 继续降级 */ }
+  } catch { /* 继续 */ }
 
-  // 策略 3: CORS 代理 - 拉取数据做客户端搜索
+  // 策略 3: CORS 代理搜索
   try {
-    const allResults = []
-    const seen = new Set()
-    for (let srcIdx = 0; srcIdx < videoSources.length; srcIdx++) {
+    const rawList = []
+    for (let srcIdx = 0; srcIdx < Math.min(3, videoSources.length); srcIdx++) {
       for (let page = 1; page <= 2; page++) {
         try {
           const sourceData = await fetchFromCorsProxies({ ac: 'detail', pg: page }, srcIdx)
           if (sourceData && sourceData.list && sourceData.list.length > 0) {
-            for (const item of sourceData.list) {
-              if (!item || !item.vod_name) continue
-              const key = `${item.vod_name}_${item.vod_id || ''}`
-              if (!seen.has(key)) {
-                seen.add(key)
-                allResults.push(item)
-              }
-            }
-          } else {
-            break
-          }
+            rawList.push(...sourceData.list)
+          } else break
         } catch { break }
       }
     }
-    const filtered = allResults.filter(matchFields)
-    if (filtered.length > 0) {
-      return { list: filtered, total: filtered.length, class: DEFAULT_CATEGORIES }
+    if (rawList.length > 0) {
+      const deduped = deduplicateList(rawList)
+      const filtered = deduped.filter(matchFields)
+      if (filtered.length > 0) {
+        return { list: filtered, total: filtered.length, class: DEFAULT_CATEGORIES }
+      }
     }
-  } catch { /* 忽略，继续返回空 */ }
+  } catch { /* 忽略 */ }
 
-  // 兜底：返回空
   return { list: [], total: 0, class: DEFAULT_CATEGORIES }
 }
 

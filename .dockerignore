@@ -1,0 +1,32 @@
+# Node
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Cache
+.cache
+.temp
+.tmp
+
+# Git
+.git
+.gitignore
+.github
+
+# 本地数据和构建
+# （Docker 会自己在镜像里构建 docs 目录，所以忽略本地的）
+docs/*
+public/data/*.json

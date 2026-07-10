@@ -1,6 +1,6 @@
-// /api/proxy.js — Vercel Serverless Functions 代理
-// 用法： /api/proxy?ac=detail&pg=1&source=0
-// 兼容：functions/api/proxy.js (Cloudflare Pages)、server.cjs（Node/Express/HF）逻辑保持一致
+// netlify/functions/proxy.mjs — Netlify Functions 代理端点
+// 访问路径：/.netlify/functions/proxy
+// 在 netlify.toml 中我们会把 /api/proxy 重写到这里
 
 export const VIDEO_SOURCES = [
   { name: '非凡资源', url: 'https://cj.ffzyapi.com/api.php/provide/vod/' },
@@ -21,41 +21,43 @@ export const VIDEO_SOURCES = [
 ]
 
 const DEFAULT_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-const DEFAULT_HEADERS = {
-  'Content-Type': 'application/json; charset=utf-8',
+
+const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Cache-Control': 'public, max-age=15, s-maxage=30, stale-while-revalidate=60',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Cache-Control': 'public, max-age=15, s-maxage=30',
+  'Content-Type': 'application/json; charset=utf-8',
 }
 
-export default async function handler (req, res) {
+export const handler = async (event) => {
   // OPTIONS 预检
-  if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-    res.setHeader('Access-Control-Max-Age', '86400')
-    return res.status(204).end()
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 204,
+      headers: { ...CORS, 'Access-Control-Max-Age': '86400' },
+      body: '',
+    }
   }
 
-  Object.entries(DEFAULT_HEADERS).forEach(([k, v]) => res.setHeader(k, v))
-
   try {
-    const query = req.query || {}
-    const sourceIdx = Math.max(0, Math.min(parseInt(query.source || '0') || 0, VIDEO_SOURCES.length - 1))
+    const qs = event.queryStringParameters || {}
+    const sourceIdx = Math.max(0, Math.min(parseInt(qs.source || '0') || 0, VIDEO_SOURCES.length - 1))
     const source = VIDEO_SOURCES[sourceIdx]
 
     const params = new URLSearchParams()
-    for (const [k, v] of Object.entries(query)) {
+    for (const [k, v] of Object.entries(qs)) {
       if (k === 'source') continue
-      params.append(k, Array.isArray(v) ? v[0] : v)
+      params.append(k, v)
     }
 
-    const targetUrl = source.url.endsWith('/') ? `${source.url}?${params.toString()}` : `${source.url}/?${params.toString()}`
+    const targetUrl = source.url.endsWith('/')
+      ? `${source.url}?${params.toString()}`
+      : `${source.url}/?${params.toString()}`
 
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 20000)
-    const response = await fetch(targetUrl, {
+    const resp = await fetch(targetUrl, {
       method: 'GET',
       signal: controller.signal,
       headers: {
@@ -66,23 +68,35 @@ export default async function handler (req, res) {
     })
     clearTimeout(timer)
 
-    const text = await response.text()
-    let json
+    const text = await resp.text()
     try {
-      json = JSON.parse(text)
-      if (typeof json === 'object' && json !== null) {
+      const json = JSON.parse(text)
+      if (json && typeof json === 'object') {
         json._source = source.name
         json._source_url = source.url
-        return res.status(response.ok ? 200 : 502).send(JSON.stringify(json))
+        return {
+          statusCode: resp.ok ? 200 : 502,
+          headers: CORS,
+          body: JSON.stringify(json),
+        }
       }
     } catch { /* 非 JSON */ }
-    res.status(response.ok ? 200 : 502).send(text)
+
+    return {
+      statusCode: resp.ok ? 200 : 502,
+      headers: CORS,
+      body: text,
+    }
   } catch (err) {
-    res.status(502).send(JSON.stringify({
-      code: 502,
-      msg: 'Proxy Error: ' + (err?.message || 'Unknown'),
-      list: [],
-      class: [],
-    }))
+    return {
+      statusCode: 502,
+      headers: CORS,
+      body: JSON.stringify({
+        code: 502,
+        msg: 'Proxy Error: ' + (err?.message || 'Unknown'),
+        list: [],
+        class: [],
+      }),
+    }
   }
 }

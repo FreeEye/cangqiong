@@ -1,0 +1,28 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm install --legacy-peer-deps --no-package-lock && npm run build",
+  "outputDirectory": "docs",
+  "framework": "vite",
+  "installCommand": "npm install --legacy-peer-deps --no-package-lock",
+  "rewrites": [
+    { "source": "/api/proxy", "destination": "/api/proxy.js" },
+    { "source": "/api/proxy/(.*)", "destination": "/api/proxy.js" },
+    { "source": "/((?!api/|assets/|static/|data/|.*\\.(?:css|js|jpg|jpeg|png|gif|svg|ico|webp|woff2?|ttf|eot|map|html|json)$).*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/api/proxy(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" },
+        { "key": "Cache-Control", "value": "public, max-age=15, s-maxage=30" }
+      ]
+    }
+  ],
+  "functions": {
+    "api/proxy.js": {
+      "maxDuration": 20
+    }
+  }
+}
